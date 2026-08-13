@@ -26,4 +26,5 @@ int main() {
     } else {
         std::cout << "未找到端口: " << targetName << '\n';
     }
+    return 0;
 }
