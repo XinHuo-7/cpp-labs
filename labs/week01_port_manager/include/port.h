@@ -7,6 +7,12 @@ enum class LinkState {
     kUp
 };
 
+enum class PortEvent {
+    kLinkUp,
+    kLinkDown
+};
+
+
 class Port {
 public:
     Port(const std::string& name, int speedMbps);
@@ -15,7 +21,7 @@ public:
     int GetSpeedMbps() const;
     LinkState GetLinkState() const;
 
-    void SetLinkState(LinkState state);
+    bool HandleEvent(PortEvent event);
     void PrintStatus() const;
 private:
     std::string name_;

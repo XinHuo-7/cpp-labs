@@ -60,10 +60,10 @@ int main() {
             std::string name;
             input >> name;
 
-            const LinkState state = 
-                command == "up" ? LinkState::kUp : LinkState::kDown;
+            const PortEvent event = 
+                command == "up" ? PortEvent::kLinkUp : PortEvent::kLinkDown;
             
-            if (manager.SetLinkState(name, state)) {
+            if (manager.HandlePortEvent(name, event)) {
                 std::cout << "端口状态更新成功. \n";
             } else {
                 std::cout << "更新失败：未找到端口.\n";

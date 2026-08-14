@@ -17,8 +17,26 @@ LinkState Port::GetLinkState() const {
     return linkState_;
 }
 
-void Port::SetLinkState(LinkState state) {
-    linkState_ = state;
+bool Port::HandleEvent(PortEvent event) {
+    switch (event)
+    {
+    case PortEvent::kLinkUp:
+        if (linkState_ == LinkState::kUp) {
+            return false;
+        }
+        linkState_ = LinkState::kUp;
+        return true;
+
+    case PortEvent::kLinkDown:
+        if (linkState_ == LinkState::kDown) {
+            return false;
+        }
+        linkState_ = LinkState::kDown;
+        return true;  
+   
+    }
+    
+    return false;
 }
 
 void Port::PrintStatus() const {
