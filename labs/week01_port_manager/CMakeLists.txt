@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(port_core
     src/port.cpp
     src/port_manager.cpp
+    src/event_log.cpp
 )
 
 target_include_directories(port_core PUBLIC
@@ -39,4 +40,16 @@ if(BUILD_TESTING)
         NAME port_manager_test
         COMMAND port_manager_test
     )
+
+    add_executable(event_log_test
+        tests/event_log_test.cpp
+    )
+
+    target_link_libraries(event_log_test PRIVATE port_core)
+
+    add_test(
+        NAME event_log_test
+        COMMAND event_log_test
+    )
+
 endif()

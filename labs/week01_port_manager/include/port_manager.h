@@ -10,7 +10,6 @@ public:
     bool AddPort(const std::string& name, int speedMbps);
     Port* FindPort(const std::string& name);
 
-    bool SetLinkState(const std::string& name, LinkState state);
     bool HandlePortEvent(const std::string& name, PortEvent event);
     void PrintAll() const;
 

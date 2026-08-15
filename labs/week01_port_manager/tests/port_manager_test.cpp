@@ -15,10 +15,6 @@ int main() {
     assert(port != nullptr);
     assert(port->GetLinkState() == LinkState::kDown);
 
-    // assert(manager.SetLinkState("Ethernet0", LinkState::kUp));
-    // assert(port->GetLinkState() == LinkState::kUp);
-
-    // assert(!manager.SetLinkState("Ethernet12", LinkState::kUp));
     assert(manager.FindPort("Ethernet12") == nullptr);
     assert(manager.HandlePortEvent("Ethernet0", PortEvent::kLinkUp));
     assert(port->GetLinkState() == LinkState::kUp);

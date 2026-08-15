@@ -26,17 +26,6 @@ bool PortManager::HandlePortEvent(const std::string& name, PortEvent event) {
     return port->HandleEvent(event);
 }
 
-// bool PortManager::SetLinkState(const std::string& name, LinkState state) {
-//     Port* port = FindPort(name);
-
-//     if (port == nullptr) {
-//         return false;
-//     }
-
-//     port->SetLinkState(state);
-//     return true;
-// }
-
 void PortManager::PrintAll() const {
     for(const auto& item : ports_) {
         item.second.PrintStatus();
