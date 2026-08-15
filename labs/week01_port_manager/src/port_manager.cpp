@@ -1,4 +1,9 @@
 #include "port_manager.h"
+#include <utility>
+
+PortManager::PortManager(std::unique_ptr<EventLog> eventLog)
+        : eventlog_(std::move(eventLog)) {
+}
 
 bool PortManager::AddPort(const std::string& name, int speedMbps) {
     if (speedMbps <= 0) {
@@ -23,7 +28,13 @@ bool PortManager::HandlePortEvent(const std::string& name, PortEvent event) {
         return false;
     }
 
-    return port->HandleEvent(event);
+    const bool changed = port->HandleEvent(event);
+
+    if (changed && eventlog_) {
+        eventlog_->Write(name + ": link state changed");
+    }
+
+    return changed;
 }
 
 void PortManager::PrintAll() const {

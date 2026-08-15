@@ -102,3 +102,17 @@ ctest --test-dir build --output-on-failure
 - 自动化测试用于保证后续修改不破坏既有功能。
 
 后续可继续扩展端口速率校验、状态变更事件、配置文件加载和网络通信接口。
+
+## 更新记录
+第 2 周 Day 1：RAII 与异常路径
+- EventLog 独占 std::ofstream
+- 构造时打开文件、离开作用域自动关闭
+- 文件打开失败抛出异常
+- event_log_test 通过
+
+第 2 周 Day 2：unique_ptr 与所有权转移
+- PortManager 可选独占拥有 EventLog
+- std::make_unique 创建日志器
+- std::move 转移所有权
+- 真实状态变化才记录日志
+- port_manager_test 验证日志行为

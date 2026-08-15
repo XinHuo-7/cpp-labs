@@ -1,7 +1,9 @@
 #include "port_manager.h"
+#include "event_log.h"
 
 #include <iostream>
 #include <sstream>
+#include <memory>
 
 void PrintHelp() {
         std::cout << "可用命令：\n"
@@ -15,7 +17,8 @@ void PrintHelp() {
 }
 
 int main() {
-    PortManager manager;
+    auto eventLog = std::make_unique<EventLog>("port_events.log");
+    PortManager manager{std::move(eventLog)};
 
     std::cout << "Port Manager CLI\n";
     PrintHelp();
@@ -66,7 +69,7 @@ int main() {
             if (manager.HandlePortEvent(name, event)) {
                 std::cout << "端口状态更新成功. \n";
             } else {
-                std::cout << "更新失败：未找到端口.\n";
+                std::cout << "更新失败：未找到端口或端口状态为变化.\n";
             }
 
             continue;
