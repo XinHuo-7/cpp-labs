@@ -116,3 +116,9 @@ ctest --test-dir build --output-on-failure
 - std::move 转移所有权
 - 真实状态变化才记录日志
 - port_manager_test 验证日志行为
+
+第 2 周 Day 3：try/catch、返回码与异常路径自动化测试
+- 日志文件无法打开时：
+- 不输出 C++ 崩溃信息
+- 而是输出可理解的错误消息
+- 程序以状态码 1 安全退出
