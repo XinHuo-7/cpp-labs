@@ -2,6 +2,7 @@
 
 #include "port.h"
 #include "event_log.h"
+#include "port_policy.h"
 
 #include <cstddef>
 #include<unordered_map>
@@ -12,7 +13,9 @@ public:
     bool AddPort(const std::string& name, int speedMbps);
     Port* FindPort(const std::string& name);
 
-    explicit PortManager(std::unique_ptr<EventLog> eventlog = nullptr);
+    explicit PortManager(
+        std::shared_ptr<const PortPolicy> policy,
+        std::unique_ptr<EventLog> eventlog = nullptr);
     bool HandlePortEvent(const std::string& name, PortEvent event);
     void PrintAll() const;
 
@@ -20,4 +23,5 @@ public:
 private:
     std::unordered_map<std::string, Port> ports_;
     std::unique_ptr<EventLog> eventlog_;
+    std::shared_ptr<const PortPolicy> policy_;
 };

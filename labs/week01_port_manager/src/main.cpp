@@ -1,5 +1,6 @@
 #include "port_manager.h"
 #include "event_log.h"
+#include "port_policy.h"
 
 #include <iostream>
 #include <sstream>
@@ -24,8 +25,9 @@ int main(int argc, char* argv[]) {
     
     try
     {
+        auto policy = std::make_shared<PortPolicy>();
         auto eventLog = std::make_unique<EventLog>(logPath);
-        PortManager manager{std::move(eventLog)};
+        PortManager manager{policy, std::move(eventLog)};
 
         std::cout << "Port Manager CLI\n";
         PrintHelp();

@@ -13,14 +13,16 @@ int main() {
     std::filesystem::remove(logPath);
 
     {
+        auto policy = std::make_shared<PortPolicy>();
         auto eventLog = std::make_unique<EventLog>(logPath);
-        PortManager manager{std::move(eventLog)};
+        PortManager manager{policy, std::move(eventLog)};
 
         assert(eventLog == nullptr);
 
         assert(manager.AddPort("Ethernet0", 10000));
         assert(!manager.AddPort("Ethernet0", 25000));
         assert(!manager.AddPort("Ethernet4", 0));
+        assert(!manager.AddPort("Ethernet4", 12345));
         assert(manager.GetPortCount() == 1);
 
         Port* port = manager.FindPort("Ethernet0");

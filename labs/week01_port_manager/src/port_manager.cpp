@@ -1,12 +1,19 @@
 #include "port_manager.h"
 #include <utility>
+#include <stdexcept>
 
-PortManager::PortManager(std::unique_ptr<EventLog> eventLog)
-        : eventlog_(std::move(eventLog)) {
+PortManager::PortManager(
+        std::shared_ptr<const PortPolicy> policy,
+        std::unique_ptr<EventLog> eventLog)
+        : eventlog_(std::move(eventLog)),
+          policy_(std::move(policy)) {
+        if (policy_ == nullptr) {
+            throw std::invalid_argument("PortManager 必须提供 PortPolicy");
+        }
 }
 
 bool PortManager::AddPort(const std::string& name, int speedMbps) {
-    if (speedMbps <= 0) {
+    if (!policy_->IsSpeedAllowed(speedMbps)) {
         return false;
     }
 
