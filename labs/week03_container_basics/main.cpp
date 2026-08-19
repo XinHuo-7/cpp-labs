@@ -35,7 +35,7 @@ int main() {
     const auto newEnd = std::remove_if (
         ports.begin(),
         ports.end(),
-        [](const Port& port) {
+        [&minSpeedMbps](const Port& port) {
             return port.speedMbps < minSpeedMbps;
         }
     );
