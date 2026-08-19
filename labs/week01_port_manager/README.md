@@ -27,7 +27,9 @@ week01_port_manager/
 |   ├── port_policy.cpp        # PortPolicy, PortAdmission 类实现
 │   └── port_manager.cpp       # PortManager 类实现
 ├── tests/
-│   └── port_manager_test.cpp  # 自动化测试
+│   ├── port_manager_test.cpp
+│   ├── event_log_test.cpp
+│   └── port_policy_test.cpp
 ├── CMakeLists.txt
 └── README.md
 ```
