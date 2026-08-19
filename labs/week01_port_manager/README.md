@@ -17,10 +17,14 @@
 week01_port_manager/
 ├── include/
 │   ├── port.h                 # Port 类声明
+|   ├── event_log.h            # EventLog 类声明
+|   ├── port_policy.h          # PortPolicy, PortAdmission 类声明
 │   └── port_manager.h         # PortManager 类声明
 ├── src/
 │   ├── main.cpp               # CLI 入口和命令解析
 │   ├── port.cpp               # Port 类实现
+|   ├── event_log.cpp          # EventLog 类实现
+|   ├── port_policy.cpp        # PortPolicy, PortAdmission 类实现
 │   └── port_manager.cpp       # PortManager 类实现
 ├── tests/
 │   └── port_manager_test.cpp  # 自动化测试
@@ -38,6 +42,7 @@ week01_port_manager/
 - `try_emplace`、`find`
 - CMake：核心库、CLI、测试程序分层构建
 - CTest：自动化测试
+- RAII、unique_ptr、shared_ptr<const PortPolicy>、std::move,try/catch、CTest。
 
 ## 构建与运行
 
@@ -47,6 +52,10 @@ week01_port_manager/
 cmake -S . -B build -G Ninja
 cmake --build build
 ./build/port_manager_cli
+
+使用 Debug 构建：
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
 ```
 
 ## CLI 命令
@@ -79,7 +88,8 @@ quit                    退出程序
 ```
 
 ## 自动化测试
-
+当前测试为3个：
+port_manager_test，event_log_test，port_policy_test，其中port_manager为主测执行试文件，其余两个为功能测试文件
 构建完成后执行：
 
 ```bash
@@ -89,7 +99,7 @@ ctest --test-dir build --output-on-failure
 预期结果：
 
 ```text
-100% tests passed, 0 tests failed out of 1
+100% tests passed, 0 tests failed out of 3
 ```
 
 ## 网络研发关联
@@ -122,3 +132,5 @@ ctest --test-dir build --output-on-failure
 - 不输出 C++ 崩溃信息
 - 而是输出可理解的错误消息
 - 程序以状态码 1 安全退出
+
+第 2 周 Day 4-5：PortPolicy, 真正接入 PortManager::AddPort

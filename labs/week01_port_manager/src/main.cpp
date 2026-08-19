@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
                 if (manager.HandlePortEvent(name, event)) {
                     std::cout << "端口状态更新成功. \n";
                 } else {
-                    std::cout << "更新失败：未找到端口或端口状态为变化.\n";
+                    std::cout << "更新失败：未找到端口或端口状态未变化.\n";
                 }
 
                 continue;

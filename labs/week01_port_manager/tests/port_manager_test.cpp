@@ -6,6 +6,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <stdexcept>
 
 int main() {
     const std::string logPath{"port_manager_test.log"};
@@ -13,17 +14,29 @@ int main() {
     std::filesystem::remove(logPath);
 
     {
+        bool threw{false};
+        try
+        {
+            PortManager invalidManager{nullptr};
+        }
+        catch(const std::invalid_argument&)
+        {
+            threw = true;
+        }
+        assert(threw);
+        
         auto policy = std::make_shared<PortPolicy>();
         auto eventLog = std::make_unique<EventLog>(logPath);
         PortManager manager{policy, std::move(eventLog)};
 
         assert(eventLog == nullptr);
-
         assert(manager.AddPort("Ethernet0", 10000));
         assert(!manager.AddPort("Ethernet0", 25000));
         assert(!manager.AddPort("Ethernet4", 0));
         assert(!manager.AddPort("Ethernet4", 12345));
-        assert(manager.GetPortCount() == 1);
+        assert(manager.AddPort("Ethernet4", 100000));
+        assert(manager.AddPort("Ethernet8", 25000));
+        assert(manager.GetPortCount() == 3);
 
         Port* port = manager.FindPort("Ethernet0");
         assert(port != nullptr);
