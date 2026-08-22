@@ -24,3 +24,23 @@ ctest --test-dir build --output-on-failure
 - 多文件 CMake
 - GDB 调试
 - AddressSanitizer
+
+##调试记录
+
+问题：vector 扩容后访问缓存 Port*，出现悬空指针。
+
+复现条件：
+1. reserve(3) 后填满 vector；
+2. 缓存第一个元素地址；
+3. 再 emplace_back 一个新端口触发扩容；
+4. 访问旧指针。
+
+证据：
+- GDB：capacity 从 3 变为 6；
+- ASan：heap-use-after-free，定位到旧指针访问行。
+
+根因：
+vector 重分配了底层连续内存，旧元素地址失效。
+
+修复：
+扩容后不再访问旧指针；通过索引、名称重新查找，或重新获得有效引用。
