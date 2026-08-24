@@ -2,6 +2,7 @@
 
 #include <utility>
 #include <string>
+#include <stdexcept>
 
 const char* ToText(PortState state) {
     switch (state)
@@ -35,8 +36,12 @@ const char* ToText(PortEvent event){
     return "UNKNOWN";    
 }
 
-PortStateMachine::PortStateMachine(std::string portName)
-    :portName_(std::move(portName)) {
+PortStateMachine::PortStateMachine(std::string portName) {
+    if (portName.empty()) {
+        throw std::invalid_argument("port name can not be empty");  
+    }
+
+    portName_ = std::move(portName);
 }
 
 TransitionResult PortStateMachine::Apply(PortEvent event) {
