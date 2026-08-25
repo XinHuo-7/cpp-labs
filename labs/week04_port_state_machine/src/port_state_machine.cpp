@@ -12,6 +12,41 @@ namespace {
         }
         return portName;
     }
+
+    void ValidateEvent(const PortEvent& event) {
+        if (event.type == PortEventType::kFaultDetected && event.reason.empty()) {
+            throw std::invalid_argument("fault event requires a reason");
+        }
+    }
+
+    PortState CalculateNextState(PortState current, PortEventType eventType) {
+
+        switch (eventType)
+        {
+            case PortEventType::kAdminEnable:
+                return current == PortState::kDown ?
+                    PortState::kNegotiating : current;
+            
+            case PortEventType::kLinkDetected:
+                return current == PortState::kNegotiating ?
+                    PortState::kUp : current;
+            
+            case PortEventType::kLinkLost:
+                return current == PortState::kNegotiating || current == PortState::kDown ?
+                    PortState::kDown : current;
+            
+            case PortEventType::kFaultDetected:
+                return current != PortState::kFault
+                    ? PortState::kFault
+                    : current;
+
+            case PortEventType::kReset:
+                return current == PortState::kFault
+                    ? PortState::kDown
+                    : current;  
+        }
+        return current;
+    }
 }
 
 const char* ToText(PortState state) {
@@ -51,47 +86,18 @@ PortStateMachine::PortStateMachine(std::string portName)
 }
 
 TransitionResult PortStateMachine::Apply(const PortEvent& event) {
-    if (event.type == PortEventType::kFaultDetected &&
-        event.reason.empty()) {
-        throw std::invalid_argument("fault event requires a reason");
+    ValidateEvent(event);
 
-    }
-
+    const PortState nextState = CalculateNextState(state_, event.type);
     
-    const PortState oldState = state_;
 
-    switch (event.type)
-    {
-        case PortEventType::kAdminEnable:
-            if (state_ == PortState::kDown) {
-                state_ = PortState::kNegotiating;
-            }
-            break;
-        
-        case PortEventType::kLinkDetected:
-            if (state_ == PortState::kNegotiating) {
-                state_ = PortState::kUp;
-            }
-            break;
-        
-        case PortEventType::kLinkLost:
-            if (state_ == PortState::kNegotiating || state_ == PortState::kUp) {
-                state_ = PortState::kDown;
-            }
-            break;
-        
-        case PortEventType::kFaultDetected:
-            if (state_ != PortState::kFault) {
-                state_ = PortState::kFault;
-            }
-            break;
-        case PortEventType::kReset:
-            if (state_ == PortState::kFault) {
-                state_ = PortState::kDown;
-            }
-            break;  
+    if (nextState == state_) {
+        return TransitionResult::kIgnored;
     }
-    return state_ == oldState ? TransitionResult::kIgnored : TransitionResult::kChanged;
+
+    state_ = nextState;
+    return TransitionResult::kChanged;
+
 }
 
 PortState PortStateMachine::GetState() const {

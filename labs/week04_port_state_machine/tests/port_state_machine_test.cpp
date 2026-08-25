@@ -65,10 +65,29 @@ void TestMovePortNameIntoMachine() {
     assert(port.GetPortName() == "Ethernet12");
 }
 
+void TestFaultResetTransiting() {
+    PortStateMachine port{"Ethernet16"};
+    assert(port.Apply({PortEventType::kAdminEnable})
+           == TransitionResult::kChanged);
+    assert(port.Apply({PortEventType::kLinkDetected})
+           == TransitionResult::kChanged);
+    assert(port.Apply({
+               PortEventType::kFaultDetected,
+               "crc error threshold exceeded"
+           }) == TransitionResult::kChanged);
+    assert(port.GetState() == PortState::kFault);
+    assert(port.Apply({PortEventType::kReset})
+           == TransitionResult::kChanged);
+    assert(port.GetState() == PortState::kDown);
+    assert(port.Apply({PortEventType::kReset})
+           == TransitionResult::kIgnored);
+}
+
 int main() {
     TestNormalTransition();
     TestInvaildEventDoesNotChangeState();
     TestEmptyPortNameThrows();
     TestInvalidFaultEventKeepsState();
     TestMovePortNameIntoMachine();
+    TestFaultResetTransiting();
 }
