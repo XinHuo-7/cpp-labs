@@ -9,7 +9,7 @@ enum class PortState {
     kFault,
 };
 
-enum class PortEvent {
+enum class PortEventType {
     kAdminEnable,
     kLinkDetected,
     kLinkLost,
@@ -22,14 +22,21 @@ enum class TransitionResult {
     kIgnored,
 };
 
+struct PortEvent
+{
+    PortEventType type;
+    std::string reason{};
+};
+
+
 const char* ToText(PortState state);
-const char* ToText(PortEvent event);
+const char* ToText(PortEventType event);
 
 class PortStateMachine {
     public:
         explicit PortStateMachine(std::string portName);
 
-        TransitionResult Apply(PortEvent event);
+        TransitionResult Apply(const PortEvent& event);
 
         PortState GetState() const;
         const std::string& GetPortName() const;

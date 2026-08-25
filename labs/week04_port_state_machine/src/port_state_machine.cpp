@@ -4,6 +4,16 @@
 #include <string>
 #include <stdexcept>
 
+namespace {
+
+    std::string ValidatePortName(std::string portName) {
+        if (portName.empty()) {
+            throw std::invalid_argument("port name cannot be empty");
+        }
+        return portName;
+    }
+}
+
 const char* ToText(PortState state) {
     switch (state)
     {
@@ -19,60 +29,63 @@ const char* ToText(PortState state) {
     return "UNKNOWN";
 }
 
-const char* ToText(PortEvent event){
-    switch (event)
+const char* ToText(PortEventType type){
+    switch (type)
     {
-        case PortEvent::kAdminEnable:
+        case PortEventType::kAdminEnable:
             return "ADMIN_ENABLE";
-        case PortEvent::kLinkDetected:
+        case PortEventType::kLinkDetected:
             return "LINK_DETECTED";
-        case PortEvent::kLinkLost:
+        case PortEventType::kLinkLost:
             return "LINK_LOST";
-        case PortEvent::kFaultDetected:
+        case PortEventType::kFaultDetected:
             return "FAULT_DETECTED";
-        case PortEvent::kReset:
+        case PortEventType::kReset:
             return "RESET";
     }
     return "UNKNOWN";    
 }
 
-PortStateMachine::PortStateMachine(std::string portName) {
-    if (portName.empty()) {
-        throw std::invalid_argument("port name can not be empty");  
-    }
-
-    portName_ = std::move(portName);
+PortStateMachine::PortStateMachine(std::string portName)
+    : portName_(ValidatePortName(std::move(portName))) {
 }
 
-TransitionResult PortStateMachine::Apply(PortEvent event) {
+TransitionResult PortStateMachine::Apply(const PortEvent& event) {
+    if (event.type == PortEventType::kFaultDetected &&
+        event.reason.empty()) {
+        throw std::invalid_argument("fault event requires a reason");
+
+    }
+
+    
     const PortState oldState = state_;
 
-    switch (event)
+    switch (event.type)
     {
-        case PortEvent::kAdminEnable:
+        case PortEventType::kAdminEnable:
             if (state_ == PortState::kDown) {
                 state_ = PortState::kNegotiating;
             }
             break;
         
-        case PortEvent::kLinkDetected:
+        case PortEventType::kLinkDetected:
             if (state_ == PortState::kNegotiating) {
                 state_ = PortState::kUp;
             }
             break;
         
-        case PortEvent::kLinkLost:
+        case PortEventType::kLinkLost:
             if (state_ == PortState::kNegotiating || state_ == PortState::kUp) {
                 state_ = PortState::kDown;
             }
             break;
         
-        case PortEvent::kFaultDetected:
+        case PortEventType::kFaultDetected:
             if (state_ != PortState::kFault) {
                 state_ = PortState::kFault;
             }
             break;
-        case PortEvent::kReset:
+        case PortEventType::kReset:
             if (state_ == PortState::kFault) {
                 state_ = PortState::kDown;
             }

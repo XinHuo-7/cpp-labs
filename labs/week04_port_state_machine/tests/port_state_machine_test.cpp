@@ -2,17 +2,18 @@
 
 #include <cassert>
 #include <stdexcept>
+#include <utility>
 
 void TestNormalTransition() {
     PortStateMachine port{"Ethernet0"};
 
     assert(port.GetState() == PortState::kDown);
 
-    assert(port.Apply(PortEvent::kAdminEnable) == TransitionResult::kChanged);
+    assert(port.Apply({PortEventType::kAdminEnable}) == TransitionResult::kChanged);
 
     assert(port.GetState() == PortState::kNegotiating);
 
-    assert(port.Apply(PortEvent::kLinkDetected) == TransitionResult::kChanged);
+    assert(port.Apply({PortEventType::kLinkDetected}) == TransitionResult::kChanged);
 
     assert(port.GetState() == PortState::kUp);
 
@@ -21,7 +22,7 @@ void TestNormalTransition() {
 void TestInvaildEventDoesNotChangeState() {
     PortStateMachine port{"Ethernet4"};
 
-    assert(port.Apply(PortEvent::kLinkDetected) == TransitionResult::kIgnored);
+    assert(port.Apply({PortEventType::kLinkDetected}) == TransitionResult::kIgnored);
 
     assert(port.GetState() == PortState::kDown);
 }
@@ -39,8 +40,35 @@ void TestEmptyPortNameThrows() {
     assert(thrown);   
 }
 
+void TestInvalidFaultEventKeepsState() {
+    PortStateMachine port{"Ethernet8"};
+
+    port.Apply({PortEventType::kAdminEnable});
+    port.Apply({PortEventType::kLinkDetected});
+    assert(port.GetState() == PortState::kUp);
+
+    bool thrown = false;
+    try {
+        port.Apply({PortEventType::kFaultDetected});
+    } catch (const std::invalid_argument&) {
+        thrown = true;
+    }
+    assert(thrown);
+    assert(port.GetState() == PortState::kUp);
+}
+
+void TestMovePortNameIntoMachine() {
+    std::string portName{"Ethernet12"};
+
+    PortStateMachine port{portName};
+
+    assert(port.GetPortName() == "Ethernet12");
+}
+
 int main() {
     TestNormalTransition();
     TestInvaildEventDoesNotChangeState();
     TestEmptyPortNameThrows();
+    TestInvalidFaultEventKeepsState();
+    TestMovePortNameIntoMachine();
 }
