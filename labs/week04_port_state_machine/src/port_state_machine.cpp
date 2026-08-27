@@ -4,6 +4,7 @@
 #include <string>
 #include <stdexcept>
 
+
 namespace {
 
     std::string ValidatePortName(std::string portName) {
@@ -88,15 +89,20 @@ PortStateMachine::PortStateMachine(std::string portName)
 TransitionResult PortStateMachine::Apply(const PortEvent& event) {
     ValidateEvent(event);
 
-    const PortState nextState = CalculateNextState(state_, event.type);
+    const PortState before = state_;
+    const PortState after = CalculateNextState(before, event.type);
+    const TransitionResult result = after == before ? TransitionResult::kIgnored
+    : TransitionResult::kChanged;
     
 
-    if (nextState == state_) {
-        return TransitionResult::kIgnored;
-    }
-
-    state_ = nextState;
-    return TransitionResult::kChanged;
+    history_.push_back({
+        before,
+        after,
+        event,
+        result
+    });
+    state_ = after;
+    return result;
 
 }
 
@@ -106,4 +112,8 @@ PortState PortStateMachine::GetState() const {
 
 const std::string& PortStateMachine::GetPortName() const {
     return portName_;
+}
+
+const std::vector<StateTransition>& PortStateMachine::GetHistory() const {
+    return history_;
 }

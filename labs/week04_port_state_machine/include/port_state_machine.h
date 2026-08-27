@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 enum class PortState {
     kDown,
@@ -28,9 +29,17 @@ struct PortEvent
     std::string reason{};
 };
 
+struct StateTransition
+{
+    PortState before;
+    PortState after;
+    PortEvent event;
+    TransitionResult result;
+};
 
 const char* ToText(PortState state);
 const char* ToText(PortEventType event);
+
 
 class PortStateMachine {
     public:
@@ -40,9 +49,11 @@ class PortStateMachine {
 
         PortState GetState() const;
         const std::string& GetPortName() const;
+        const std::vector<StateTransition>& GetHistory() const;
 
     private:
         std::string portName_;
         PortState state_{PortState::kDown};
+        std::vector<StateTransition> history_;
 };
 

@@ -83,6 +83,23 @@ void TestFaultResetTransiting() {
            == TransitionResult::kIgnored);
 }
 
+void TestTransitionHistory() {
+    PortStateMachine port{"Ethernet20"};
+
+    port.Apply({PortEventType::kLinkDetected});  // 忽略
+    port.Apply({PortEventType::kAdminEnable});   // 生效
+    const auto& history = port.GetHistory();
+    assert(history.size() == 2);
+
+    assert(history[0].before == PortState::kDown);
+    assert(history[0].after == PortState::kDown);
+    assert(history[0].result == TransitionResult::kIgnored);
+
+    assert(history[1].before == PortState::kDown);
+    assert(history[1].after == PortState::kNegotiating);
+    assert(history[1].result == TransitionResult::kChanged);
+}
+
 int main() {
     TestNormalTransition();
     TestInvaildEventDoesNotChangeState();
@@ -90,4 +107,5 @@ int main() {
     TestInvalidFaultEventKeepsState();
     TestMovePortNameIntoMachine();
     TestFaultResetTransiting();
+    TestTransitionHistory();
 }
