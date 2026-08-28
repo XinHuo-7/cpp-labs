@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <cstddef>
 
 enum class PortState {
     kDown,
@@ -46,6 +47,7 @@ class PortStateMachine {
         explicit PortStateMachine(std::string portName);
 
         TransitionResult Apply(const PortEvent& event);
+        std::size_t ApplyBatch(const std::vector<PortEvent>& events);
 
         PortState GetState() const;
         const std::string& GetPortName() const;

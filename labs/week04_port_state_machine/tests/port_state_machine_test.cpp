@@ -3,6 +3,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 void TestNormalTransition() {
     PortStateMachine port{"Ethernet0"};
@@ -60,7 +61,7 @@ void TestInvalidFaultEventKeepsState() {
 void TestMovePortNameIntoMachine() {
     std::string portName{"Ethernet12"};
 
-    PortStateMachine port{portName};
+    PortStateMachine port{std::move(portName)};
 
     assert(port.GetPortName() == "Ethernet12");
 }
@@ -100,6 +101,62 @@ void TestTransitionHistory() {
     assert(history[1].result == TransitionResult::kChanged);
 }
 
+void TestValidBatchCommitsAllTransitions() {
+    PortStateMachine port{"Ethernet24"};
+
+    const std::vector<PortEvent> events{
+        {PortEventType::kAdminEnable},
+        {PortEventType::kLinkDetected},
+        {
+            PortEventType::kFaultDetected,
+            "remote fault"
+        },
+        {PortEventType::kReset}
+    };
+
+    const std::size_t changedCount = port.ApplyBatch(events);
+
+    assert(changedCount == 4);
+    assert(port.GetState() == PortState::kDown);
+    assert(port.GetHistory().size() == 4);
+}
+
+void TestInvalidBatchDoesNotCommit() {
+    PortStateMachine port{"Ethernet28"};
+
+    const std::vector<PortEvent> events{
+        {PortEventType::kAdminEnable},
+        {PortEventType::kFaultDetected},  // 缺少原因，非法
+        {PortEventType::kLinkDetected}
+    };
+
+    bool thrown = false;
+    try
+    {
+        port.ApplyBatch(events);
+    }
+    catch(const std::invalid_argument&)
+    {
+        thrown = true;
+    }
+    assert(thrown);
+    assert(port.GetState() == PortState::kDown);
+    assert(port.GetHistory().empty());
+    
+}
+
+void TestLinkLostTransition() {
+    PortStateMachine port{"Ethernet32"};
+
+    port.Apply({PortEventType::kAdminEnable});
+    port.Apply({PortEventType::kLinkDetected});
+    assert(port.GetState() == PortState::kUp);
+
+    assert(port.Apply({PortEventType::kLinkLost})
+           == TransitionResult::kChanged);
+    assert(port.GetState() == PortState::kDown);
+}
+
 int main() {
     TestNormalTransition();
     TestInvaildEventDoesNotChangeState();
@@ -108,4 +165,7 @@ int main() {
     TestMovePortNameIntoMachine();
     TestFaultResetTransiting();
     TestTransitionHistory();
+    TestValidBatchCommitsAllTransitions();
+    TestInvalidBatchDoesNotCommit();
+    TestLinkLostTransition();
 }

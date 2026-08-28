@@ -1,6 +1,8 @@
 #include "port_state_machine.h"
 
 #include <iostream>
+#include <exception>
+#include <vector>
 
 void SendEvent(PortStateMachine& machine, const PortEvent& event) {
     const PortState before = machine.GetState();
@@ -35,14 +37,26 @@ void PrintHistory(const PortStateMachine& machine) {
 
 int main() {
     PortStateMachine uplinkPort{"Ethernet0"};
+    
+    const std::vector<PortEvent> startupEvents{
+        {PortEventType::kLinkDetected},
+        {PortEventType::kAdminEnable},
+        {PortEventType::kLinkDetected},
+        {
+            PortEventType::kFaultDetected,
+            "crc error thresold exceeded"
+        },
+        {PortEventType::kReset}
 
-    SendEvent(uplinkPort, {PortEventType::kLinkDetected});  // 状态未变化
-    SendEvent(uplinkPort, {PortEventType::kAdminEnable});
-    SendEvent(uplinkPort, {PortEventType::kLinkDetected});
-    SendEvent(uplinkPort, {PortEventType::kFaultDetected, 
-    "remote fault detected"});
-    SendEvent(uplinkPort, {PortEventType::kReset});
-    SendEvent(uplinkPort, {PortEventType::kLinkLost});  // 状态未变化
+    };
 
+    try {
+        const std::size_t changedCount = uplinkPort.ApplyBatch(startupEvents);
+
+        std::cout << "本批次实际状态迁移数: " << changedCount << '\n';
+        PrintHistory(uplinkPort);
+    } catch (const std::exception& error) {
+        std::cout << "批量处理失败: " << error.what() << '\n';
+    }
     return 0;
 }
