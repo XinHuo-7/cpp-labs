@@ -34,3 +34,16 @@ add_executable(concurrent_event_service
 target_link_libraries(concurrent_event_service PRIVATE
     event_worker_core
 )
+
+enable_testing()
+
+add_executable(event_queue_test
+    tests/event_queue_test.cpp
+)
+
+target_link_libraries(event_queue_test PRIVATE event_worker_core)
+
+add_test(
+    NAME event_queue_test
+    COMMAND event_queue_test
+)
