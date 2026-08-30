@@ -10,6 +10,7 @@ find_package(Threads REQUIRED)
 
 add_library(event_worker_core
     src/event_worker.cpp
+    src/event_queue.cpp
 )
 
 target_include_directories(event_worker_core PUBLIC
