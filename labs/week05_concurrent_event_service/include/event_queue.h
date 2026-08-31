@@ -1,5 +1,6 @@
 #pragma once
 
+#include <condition_variable>
 #include <cstddef>
 #include <mutex>
 #include <queue>
@@ -13,10 +14,17 @@ struct PortEvent
 
 class EventQueue {
     public:
-        void Push(PortEvent event);
+        bool Push(PortEvent event);
+
         bool TryPop(PortEvent& outEvent);
+        bool WaitPop(PortEvent& outEvent);
+
+        void Close();
         std::size_t Size() const;
+
     private:
         mutable std::mutex mutex_;
+        std::condition_variable eventAvailable_;
         std::queue<PortEvent> events_;
+        bool closed_{false};
 };

@@ -32,6 +32,18 @@ void TestPushAndPopInOrder() {
     assert(queue.Size() == 0);
 }
 
+// void TestCloseStilAllowDrainingEvents() {
+//     EventQueue queue;
+
+//     queue.Push({"Ethernet0", "LINK_UP"});
+//     queue.Push({"Ethernet4", "LINK_DOWN"});
+
+//     queue.Close();
+
+//     PortEvent event;
+//     assert
+// }
+
 void Produce(EventQueue& queue, const std::string& produceName) {
     for (int index = 0; index < 100; ++index) {
         queue.Push({produceName + "-Ethernet" + std::to_string(index),
