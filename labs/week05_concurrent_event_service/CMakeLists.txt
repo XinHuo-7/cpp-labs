@@ -47,3 +47,14 @@ add_test(
     NAME event_queue_test
     COMMAND event_queue_test
 )
+
+add_executable(event_worker_test
+    tests/event_worker_test.cpp
+)
+
+target_link_libraries(event_worker_test PRIVATE event_worker_core)
+
+add_test(
+    NAME event_worker_test
+    COMMAND event_worker_test
+)

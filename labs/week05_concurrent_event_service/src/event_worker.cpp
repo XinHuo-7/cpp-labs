@@ -10,15 +10,25 @@ EventWorker::EventWorker(std::string workerName)
 }
 
 EventWorker::~EventWorker() {
+    Stop();
     Join();
 }
 
 void EventWorker::Start() {
-    if (workerThread_.joinable()) {
-        throw std::logic_error("worker is already running or not joined");
+    if (started_) {
+        throw std::logic_error("event worker has already been started");
     }
 
     workerThread_ = std::thread(&EventWorker::Run, this);
+    started_ = true;
+}
+
+bool EventWorker::Submit(PortEvent event) {
+    return eventQueue_.Push(std::move(event));
+}
+
+void EventWorker::Stop() {
+    eventQueue_.Close();
 }
 
 void EventWorker::Join() {
@@ -27,13 +37,19 @@ void EventWorker::Join() {
     }
 }
 
+std::size_t EventWorker::ProcessedCount() const {
+    return processedCount_.load();
+}
+
 void EventWorker::Run() {
-    for (int eventId = 1; eventId <= 3; ++eventId) {
-        std::cout << "[" << workerName_ << "]"
-                  << "处理启动事件 #" << eventId << '\n';
-        
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    PortEvent event;
+
+    while (eventQueue_.WaitPop(event)) {
+        std::cout << '[' << workerName_ << ']'
+                  << "处理端口: " << event.portName
+                  << " | 事件：" << event.description <<'\n';
+        ++processedCount_;
     }
 
-    std::cout << "[" << workerName_ << "] 事件处理完成\n";
+    std::cout << "[" << workerName_ << "] 队列已关闭, 工作线程退出\n";
 }

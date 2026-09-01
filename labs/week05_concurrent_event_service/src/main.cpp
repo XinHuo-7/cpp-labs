@@ -33,23 +33,40 @@ void ConsumeEvents(EventQueue& queue, int& consumedCount) {
     std::cout << "[consumer] 队列已关闭，消费者退出\n";
 }
 
+// day3 多线程调度
+// int main() {
+//     EventQueue queue;
+//     int consumedCount = 0;
+
+//     std::thread consumer(ConsumeEvents, std::ref(queue), std::ref(consumedCount));
+//     std::thread producerA(ProduceEvents, std::ref(queue), "link-monitor-A", 0);
+//     std::thread producerB(ProduceEvents, std::ref(queue), "link-monitor-B", 12);
+
+//     producerA.join();
+//     producerB.join();
+
+//     std::cout << "[main]两个生产线程已结束，关闭事件队列\n";
+
+//     queue.Close();
+    
+//     consumer.join();
+    
+//     std::cout << "[main] 已消费事件数: " << consumedCount << '\n';
+//     return 0;
+// }
+
 int main() {
-    EventQueue queue;
-    int consumedCount = 0;
+    EventWorker worker{"port-event-worker"};
 
-    std::thread consumer(ConsumeEvents, std::ref(queue), std::ref(consumedCount));
-    std::thread producerA(ProduceEvents, std::ref(queue), "link-monitor-A", 0);
-    std::thread producerB(ProduceEvents, std::ref(queue), "link-monitor-B", 12);
+    worker.Start();
+    worker.Submit({"Ethernet0", "LINK_UP"});
+    worker.Submit({"Ethernet4", "LINK_DOWN"});
+    worker.Submit({"Ethernet0", "SPEED_CHANGED"});
 
-    producerA.join();
-    producerB.join();
+    worker.Stop();
+    worker.Join();
 
-    std::cout << "[main]两个生产线程已结束，关闭事件队列\n";
-
-    queue.Close();
-    
-    consumer.join();
-    
-    std::cout << "[main] 已消费事件数: " << consumedCount << '\n';
+    std::cout << "[main] 已处理事件数："
+              << worker.ProcessedCount() << '\n';
     return 0;
 }
