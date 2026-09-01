@@ -31,9 +31,7 @@ bool EventQueue::TryPop(PortEvent& outEvent) {
 bool EventQueue::WaitPop(PortEvent& outEvent) {
     std::unique_lock<std::mutex> lock(mutex_);
 
-    eventAvailable_.wait(lock, [this] {
-        return closed_ || !events_.empty();
-    });
+    eventAvailable_.wait(lock, [this] {return closed_ || !events_.empty();});
 
     if (events_.empty()) {
         return false;
