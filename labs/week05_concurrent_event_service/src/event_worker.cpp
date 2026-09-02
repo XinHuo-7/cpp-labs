@@ -9,6 +9,7 @@ EventWorker::EventWorker(std::string workerName)
     : workerName_(std::move(workerName)) {
 }
 
+// Stop 队列关闭；Join线程关闭
 EventWorker::~EventWorker() {
     Stop();
     Join();
@@ -24,7 +25,11 @@ void EventWorker::Start() {
 }
 
 bool EventWorker::Submit(PortEvent event) {
-    return eventQueue_.Push(std::move(event));
+    const bool accepted = eventQueue_.Push(std::move(event));
+    if (accepted) {
+        ++acceptedCount_;
+    }
+    return accepted;
 }
 
 void EventWorker::Stop() {
@@ -39,6 +44,9 @@ void EventWorker::Join() {
 
 std::size_t EventWorker::ProcessedCount() const {
     return processedCount_.load();
+}
+std::size_t EventWorker::AcceptedCount() const {
+    return acceptedCount_.load();
 }
 
 void EventWorker::Run() {

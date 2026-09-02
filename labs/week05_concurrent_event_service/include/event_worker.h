@@ -21,6 +21,7 @@ class EventWorker {
         void Stop();
         void Join();
 
+        std::size_t AcceptedCount() const;
         std::size_t ProcessedCount() const;
 
     private:
@@ -30,7 +31,8 @@ class EventWorker {
         std::thread workerThread_;
         EventQueue eventQueue_;
 
-        std::atomic<std::size_t> processedCount_{0};
+        std::atomic<std::size_t> processedCount_{0}; // 后台线程实际处理的事件数
+        std::atomic<std::size_t> acceptedCount_{0};  // 成功放入队列的事件数
         bool started_{false};
 
 };

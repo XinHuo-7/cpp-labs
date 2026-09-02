@@ -6,6 +6,19 @@
 #include <string>
 #include <thread>
 
+void SubmitEvents(EventWorker& worker, const std::string& producerName, int startIndex) {
+    for (int index = 0; index < 3; ++index) {
+        PortEvent event{
+            producerName + "-Ethernet" + std::to_string(startIndex + index),
+            "LINK_CHANGED"
+        };
+        if (!worker.Submit(std::move(event))) {
+            std::cerr << '[' << producerName << "] 事件投递失败\n";
+            return;
+        }
+    }
+}
+
 void ProduceEvents(EventQueue& queue, const std::string& producerName, int startIndex) {
     for (int index = 0; index < 3; ++index) {
         PortEvent event {
@@ -59,14 +72,27 @@ int main() {
     EventWorker worker{"port-event-worker"};
 
     worker.Start();
-    worker.Submit({"Ethernet0", "LINK_UP"});
-    worker.Submit({"Ethernet4", "LINK_DOWN"});
-    worker.Submit({"Ethernet0", "SPEED_CHANGED"});
+    std::thread producerA(SubmitEvents, std::ref(worker), "LACP", 0);
+    std::thread producerB(SubmitEvents, std::ref(worker), "BGP", 100);
+    std::thread producerC(SubmitEvents, std::ref(worker), "PORT", 200);
+
+    producerA.join();
+    producerB.join();
+    producerC.join();
 
     worker.Stop();
     worker.Join();
 
-    std::cout << "[main] 已处理事件数："
-              << worker.ProcessedCount() << '\n';
+    const std::size_t accepted = worker.AcceptedCount();
+    const std::size_t processed = worker.ProcessedCount();
+
+    std::cout << "[main] 已处理事件数：" << accepted << '\n';
+    std::cout << "[main] 实际处理事件数：" << processed << '\n';
+
+    if (accepted != processed) {
+        std::cerr << "[main] 检测到事件丢失\n";
+        return 1;
+    }
+    std::cout << "[main] 所有事件处理完成";
     return 0;
 }
