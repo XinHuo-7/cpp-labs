@@ -83,10 +83,54 @@ void TestConcurrentProducersDoNotLoseEvents() {
     assert(worker.ProcessedCount() == kexpectedCount);
 }
 
+void TestWorkerLifecycle() {
+    EventWorker worker{"lifecycle-test-worker"};
+
+    assert(worker.State() == WorkerState::kCreated);
+    assert(!worker.Submit({"Ethernet0", "LINK_UP"}));
+
+    worker.Start();
+
+    assert(worker.State() == WorkerState::kRunning);
+    assert(worker.Submit({"Ethernet0", "LINK_UP"}));
+
+    worker.Stop();
+
+    assert(!worker.Submit({"Ethernet4", "LINK_DOWN"}));
+
+    worker.Join();
+
+    assert(worker.State() == WorkerState::kStopped);
+    assert(worker.AcceptedCount() == 1);
+    assert(worker.ProcessedCount() == 1);
+}
+
+void TestStopBeforeStart() {
+    EventWorker worker{"never-started-worker"};
+    worker.Stop();
+    worker.Join();
+
+    assert(worker.State() == WorkerState::kStopped);
+    assert(!worker.Submit({"Ethernet0", "LINK_UP"}));
+
+    bool caught = false;
+
+        try {
+        worker.Start();
+    } catch (const std::logic_error&) {
+        caught = true;
+    }
+
+    assert(caught);
+
+}
+
 int main() {
    TestProcessesSubmittedEvents(); 
    TestRejectsEventsAfterStop();
    TestCannotStartTwice();
    TestDestructStopAndJoins();
    TestConcurrentProducersDoNotLoseEvents();
+   TestWorkerLifecycle();
+   TestStopBeforeStart();
 }

@@ -7,6 +7,15 @@
 #include <thread>
 #include <cstddef>
 
+enum class WorkerState {
+    kCreated,
+    kRunning,
+    kStopping,
+    kStopped
+};
+
+const char* ToText(WorkerState state);
+
 class EventWorker {
     public:
         explicit EventWorker(std::string workerName);
@@ -23,6 +32,7 @@ class EventWorker {
 
         std::size_t AcceptedCount() const;
         std::size_t ProcessedCount() const;
+        WorkerState State() const;
 
     private:
         void Run();
@@ -33,6 +43,5 @@ class EventWorker {
 
         std::atomic<std::size_t> processedCount_{0}; // 后台线程实际处理的事件数
         std::atomic<std::size_t> acceptedCount_{0};  // 成功放入队列的事件数
-        bool started_{false};
-
+        std::atomic<WorkerState> state_{WorkerState::kCreated};
 };

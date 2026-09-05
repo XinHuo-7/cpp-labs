@@ -72,6 +72,7 @@ int main() {
     EventWorker worker{"port-event-worker"};
 
     worker.Start();
+    std::cout << "[main] 服务状态: " << ToText(worker.State()) << '\n';
     std::thread producerA(SubmitEvents, std::ref(worker), "LACP", 0);
     std::thread producerB(SubmitEvents, std::ref(worker), "BGP", 100);
     std::thread producerC(SubmitEvents, std::ref(worker), "PORT", 200);
@@ -82,11 +83,12 @@ int main() {
 
     worker.Stop();
     worker.Join();
+    std::cout << "[main] 服务状态: " << ToText(worker.State()) << '\n';
 
     const std::size_t accepted = worker.AcceptedCount();
     const std::size_t processed = worker.ProcessedCount();
 
-    std::cout << "[main] 已处理事件数：" << accepted << '\n';
+    std::cout << "[main] 成功接收事件数：" << accepted << '\n';
     std::cout << "[main] 实际处理事件数：" << processed << '\n';
 
     if (accepted != processed) {
