@@ -43,4 +43,6 @@ if(BUILD_TESTING)
         NAME tcp_socket_test
         COMMAND tcp_socket_test
     )
+
+    set_tests_properties(tcp_socket_test PROPERTIES TIMEOUT 10)
 endif()

@@ -5,6 +5,9 @@
 
 #include <sys/socket.h>
 #include <unistd.h>
+#include <stdexcept>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 TcpSocket::TcpSocket() {
     fd_ = :: socket(AF_INET, SOCK_STREAM, 0);
@@ -28,4 +31,118 @@ TcpSocket::~TcpSocket() noexcept {
 
 int TcpSocket::GetFd() const noexcept {
     return fd_;
+}
+
+void TcpSocket::BindLoopback(std::uint16_t port) {
+    sockaddr_in address{};
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+    const int result = :: bind(
+        fd_, 
+        reinterpret_cast<const sockaddr*>(&address),
+        sizeof(address)
+    );
+
+    if (result == -1) {
+        const int errorCode = errno;
+
+        throw std::system_error(
+            errorCode,
+            std::generic_category(),
+            "bind failed"
+        );
+    }
+}
+
+void TcpSocket::Listen(int backlog) {
+    if (backlog <= 0) {
+        throw std::invalid_argument("backlog must be positive");
+    }
+
+    if(::listen(fd_, backlog) == -1) {
+        const int errorCode = errno;
+
+        throw std::system_error(
+            errorCode,
+            std::generic_category(),
+            "listen failed"
+        );
+    }
+}
+
+std::uint16_t TcpSocket::GetLocalPort() const {
+    sockaddr_in address{};
+    socklen_t addressLength = sizeof(address);
+
+    const int result = ::getsockname(
+        fd_,
+        reinterpret_cast<sockaddr*>(&address),
+        &addressLength
+    );
+
+    if (result == -1) {
+        const int errorCode = errno;
+        
+        throw std::system_error(
+            errorCode,
+            std::generic_category(),
+            "getsockname failed"
+        );
+    }
+
+    return ntohs(address.sin_port);
+}
+
+TcpSocket::TcpSocket(int acceptedFd) noexcept : fd_(acceptedFd) {
+
+}
+
+void TcpSocket::ConnectLoopback(std::uint16_t port) {
+    if (port == 0) {
+        throw std::invalid_argument("destination port must be nonzero");
+    }
+
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+    const int result = ::connect(
+        fd_,
+        reinterpret_cast<const sockaddr*>(&address),
+        sizeof(address)
+    );
+
+    if (result == -1) {
+        const int errorCode = errno;
+
+        throw std::system_error(
+            errorCode,
+            std::generic_category(),
+            "connect failed"
+        );
+    }
+}
+
+TcpSocket TcpSocket::Accept() {
+    const int acceptedFd = ::accept(
+        fd_,
+        nullptr,
+        nullptr
+    );
+
+    if (acceptedFd == -1) {
+        const int errorCode = errno;
+
+        throw std::system_error (
+            errorCode,
+            std::generic_category(),
+            "accept failed"
+        );
+    }
+
+    return TcpSocket{acceptedFd};
 }
