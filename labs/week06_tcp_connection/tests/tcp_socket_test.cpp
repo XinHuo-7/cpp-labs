@@ -173,6 +173,71 @@ void TestRejectsZeroDestinationPort() {
     Require(caught, "Zero destination port must be rejected");
 }
 
+void TestRequestAndResponse() {
+    TcpSocket listener;
+    listener.BindLoopback(0);
+    listener.Listen();
+
+    TcpSocket client;
+    client.ConnectLoopback(listener.GetLocalPort());
+
+    TcpSocket connection = listener.Accept();
+
+    client.SendAll("PING");
+
+    const auto request = connection.ReceiveExact(4);
+    Require(request == "PING", "Request mismatch");
+
+    connection.SendAll("PONG");
+    const auto response = client.ReceiveExact(4);
+    Require(response == "PONG", "Response mistmatch");
+
+}
+
+// 测试\0也能接受，不会把\0当作数据结束标志
+void TestTransfersEmbeddedNull() {
+    TcpSocket listener;
+    listener.BindLoopback(0);
+    listener.Listen();
+
+    TcpSocket client;
+    client.ConnectLoopback(listener.GetLocalPort());
+
+    TcpSocket connection = listener.Accept();
+
+    const std::string payload("A\0B", 3);
+    client.SendAll(payload);
+
+    const auto received = connection.ReceiveExact(payload.size());
+    Require(received.size() == 3, "Payload length mismatch");
+    Require(received == payload, "Payload content mismatch");
+}
+
+// 尚未收到约定长度，对端结束发送
+void TestDetectsEarlyEndOfStream() {
+    TcpSocket listener;
+    listener.BindLoopback(0);
+    listener.Listen();
+
+    TcpSocket client;
+    client.ConnectLoopback(listener.GetLocalPort());
+
+    TcpSocket connection = listener.Accept();
+    client.SendAll("AB");
+    const int shutdownResult = ::shutdown(client.GetFd(), SHUT_WR);
+    Require(shutdownResult == 0, "shutdown failed");
+
+    bool caught = false;
+    try {
+        const auto data = connection.ReceiveExact(4);
+        (void) data;
+    } catch (const std::runtime_error& error) {
+        caught = std::string(error.what()) == "peer ended sending before all expected bytes arrived";
+    }
+
+    Require(caught, "Early end of stream must be detected");
+}
+
 int main() {
     try
     {
@@ -185,6 +250,9 @@ int main() {
         TestConnectAndAccept();
         TestAcceptedSocketClosesAutomatically();
         TestRejectsZeroDestinationPort();
+        TestRequestAndResponse();
+        TestTransfersEmbeddedNull();
+        TestDestructorClosesSocket();
         std::cout << "ALL TCP socket tests passed\n";   
     }
     catch(const std::exception& error)

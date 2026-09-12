@@ -14,6 +14,7 @@ add_compile_options(
 
 add_library(tcp_connection_core
     src/tcp_socket.cpp
+    src/message_protocol.cpp
 )
 
 target_include_directories(tcp_connection_core PUBLIC
@@ -45,4 +46,21 @@ if(BUILD_TESTING)
     )
 
     set_tests_properties(tcp_socket_test PROPERTIES TIMEOUT 10)
+
+    add_executable(message_protocol_test
+        tests/message_protocol_test.cpp
+    )
+
+    target_link_libraries(message_protocol_test PRIVATE
+        tcp_connection_core
+    )
+
+    add_test(
+        NAME message_protocol_test
+        COMMAND message_protocol_test
+    )
+
+    set_tests_properties(message_protocol_test PROPERTIES
+        TIMEOUT 10
+)
 endif()

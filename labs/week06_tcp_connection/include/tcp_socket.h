@@ -1,6 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
+#include <string>
+#include <string_view>
 
 class TcpSocket {
 public:
@@ -18,6 +21,8 @@ public:
 
     void ConnectLoopback(std::uint16_t port);
     TcpSocket Accept();
+    void SendAll(std::string_view data);
+    std::string ReceiveExact(std::size_t byteCount);
 
 private:
     explicit TcpSocket(int acceptedFd) noexcept;

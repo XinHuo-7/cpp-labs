@@ -146,3 +146,73 @@ TcpSocket TcpSocket::Accept() {
 
     return TcpSocket{acceptedFd};
 }
+
+void TcpSocket::SendAll(std::string_view data) {
+    std::size_t sent = 0;
+
+    while (sent < data.size())
+    {
+        const ssize_t result = ::send(
+            fd_,
+            data.data() + sent,  // 从尚未发送的位置开始
+            data.size() - sent,  // 还剩多少字节需要发送
+            MSG_NOSIGNAL
+        );
+
+        if (result == -1) {
+            const int errorCode = errno;
+
+            if (errorCode == EINTR) {
+                continue;
+            }   
+
+            throw std::system_error(
+                errorCode,
+                std::generic_category(),
+                "send failed"
+            );
+        }
+
+        if (result == 0) {
+            throw std::runtime_error("send made no progress");
+        }
+
+        sent += static_cast<std::size_t>(result);
+    }
+    
+}
+
+std::string TcpSocket::ReceiveExact(std::size_t byteCount) {
+    std::string data(byteCount, '\0');
+    std::size_t received = 0;
+    while (received < byteCount)
+    {
+        const ssize_t result = ::recv(
+            fd_,
+            data.data() + received,
+            byteCount - received,
+            0
+        );
+
+        if (result == -1) {
+            const int errorCode =errno;
+
+            if (errorCode == EINTR) {
+                continue;
+            }
+
+            throw std::system_error {
+                errorCode,
+                std::generic_category(),
+                "recv failed"
+            };
+        }
+
+        if (result == 0) {
+            throw std::runtime_error("peer ended sending before all expected bytes arrived");
+        }
+
+        received += static_cast<std::size_t>(result);
+    }
+    return data;
+}
