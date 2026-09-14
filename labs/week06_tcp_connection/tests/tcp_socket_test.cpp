@@ -252,7 +252,7 @@ int main() {
         TestRejectsZeroDestinationPort();
         TestRequestAndResponse();
         TestTransfersEmbeddedNull();
-        TestDestructorClosesSocket();
+        TestDetectsEarlyEndOfStream();
         std::cout << "ALL TCP socket tests passed\n";   
     }
     catch(const std::exception& error)

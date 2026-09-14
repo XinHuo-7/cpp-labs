@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/time.h>
 
 TcpSocket::TcpSocket() {
     fd_ = :: socket(AF_INET, SOCK_STREAM, 0);
@@ -24,9 +25,7 @@ TcpSocket::TcpSocket() {
 }
 
 TcpSocket::~TcpSocket() noexcept {
-    if (fd_ >= 0) {
-        ::close(fd_);
-    }
+    Close();
 }
 
 int TcpSocket::GetFd() const noexcept {
@@ -34,6 +33,7 @@ int TcpSocket::GetFd() const noexcept {
 }
 
 void TcpSocket::BindLoopback(std::uint16_t port) {
+    RequireState(SocketState::kCreated);
     sockaddr_in address{};
 
     address.sin_family = AF_INET;
@@ -55,9 +55,11 @@ void TcpSocket::BindLoopback(std::uint16_t port) {
             "bind failed"
         );
     }
+    state_ = SocketState::kBound;
 }
 
 void TcpSocket::Listen(int backlog) {
+    RequireState(SocketState::kBound);
     if (backlog <= 0) {
         throw std::invalid_argument("backlog must be positive");
     }
@@ -71,6 +73,7 @@ void TcpSocket::Listen(int backlog) {
             "listen failed"
         );
     }
+    state_ = SocketState::kListening;
 }
 
 std::uint16_t TcpSocket::GetLocalPort() const {
@@ -96,11 +99,12 @@ std::uint16_t TcpSocket::GetLocalPort() const {
     return ntohs(address.sin_port);
 }
 
-TcpSocket::TcpSocket(int acceptedFd) noexcept : fd_(acceptedFd) {
+TcpSocket::TcpSocket(int acceptedFd) noexcept : fd_(acceptedFd), state_(SocketState::kConnected) {
 
 }
 
 void TcpSocket::ConnectLoopback(std::uint16_t port) {
+    RequireState(SocketState::kCreated);
     if (port == 0) {
         throw std::invalid_argument("destination port must be nonzero");
     }
@@ -125,9 +129,11 @@ void TcpSocket::ConnectLoopback(std::uint16_t port) {
             "connect failed"
         );
     }
+    state_ = SocketState::kConnected;
 }
 
 TcpSocket TcpSocket::Accept() {
+    RequireState(SocketState::kListening);
     const int acceptedFd = ::accept(
         fd_,
         nullptr,
@@ -148,6 +154,7 @@ TcpSocket TcpSocket::Accept() {
 }
 
 void TcpSocket::SendAll(std::string_view data) {
+    RequireState(SocketState::kConnected);
     std::size_t sent = 0;
 
     while (sent < data.size())
@@ -164,7 +171,9 @@ void TcpSocket::SendAll(std::string_view data) {
 
             if (errorCode == EINTR) {
                 continue;
-            }   
+            }
+            
+            Abort();
 
             throw std::system_error(
                 errorCode,
@@ -174,6 +183,7 @@ void TcpSocket::SendAll(std::string_view data) {
         }
 
         if (result == 0) {
+            Abort();
             throw std::runtime_error("send made no progress");
         }
 
@@ -183,6 +193,7 @@ void TcpSocket::SendAll(std::string_view data) {
 }
 
 std::string TcpSocket::ReceiveExact(std::size_t byteCount) {
+    RequireState(SocketState::kConnected);
     std::string data(byteCount, '\0');
     std::size_t received = 0;
     while (received < byteCount)
@@ -201,6 +212,16 @@ std::string TcpSocket::ReceiveExact(std::size_t byteCount) {
                 continue;
             }
 
+            if (errorCode == EAGAIN || errorCode == EWOULDBLOCK) {
+                CloseWithState(SocketState::kTimedOut);
+                throw std::system_error(
+                    errorCode,
+                    std::generic_category(),
+                    "receive timeout"
+                );
+            }
+            
+            Abort();
             throw std::system_error {
                 errorCode,
                 std::generic_category(),
@@ -209,10 +230,93 @@ std::string TcpSocket::ReceiveExact(std::size_t byteCount) {
         }
 
         if (result == 0) {
+            CloseWithState(SocketState::kPeerClosed);
             throw std::runtime_error("peer ended sending before all expected bytes arrived");
         }
 
         received += static_cast<std::size_t>(result);
     }
     return data;
+}
+
+void TcpSocket::SetReceiveTimeout(int timeoutMs) {
+    if (timeoutMs <= 0) {
+        throw std::invalid_argument("receive timeout must be positive");
+    }
+
+    timeval timeout{};
+    timeout.tv_sec = timeoutMs / 1000;
+    timeout.tv_usec = (timeoutMs % 1000) * 1000;
+
+    const int result = ::setsockopt (
+        fd_,
+        SOL_SOCKET,
+        SO_RCVTIMEO,
+        &timeout,
+        sizeof(timeout)
+    );
+
+    if (result == -1) {
+        const int errorCode = errno;
+
+        throw std::system_error(
+            errorCode,
+            std::generic_category(),
+            "setting receive timeout failed"
+        );
+    }
+}
+
+const char* ToText(SocketState state) noexcept {
+    switch (state) {
+    case SocketState::kCreated:
+        return "CREATED";
+    case SocketState::kBound:
+        return "BOUND";
+    case SocketState::kListening:
+        return "LISTENING";
+    case SocketState::kConnected:
+        return "CONNECTED";
+    case SocketState::kPeerClosed:
+        return "PEER_CLOSED";
+    case SocketState::kTimedOut:
+        return "TIMED_OUT";
+    case SocketState::kFailed:
+        return "FAILED";
+    case SocketState::kClosed:
+        return "CLOSED";
+    }
+
+    return "UNKNOWN";
+}
+
+SocketState TcpSocket::GetState() const noexcept {
+    return state_;
+}
+
+void TcpSocket::RequireState(SocketState expected) const {
+    if (state_ != expected) {
+        throw std::logic_error(std::string("unexpected socket state: ") + ToText(state_));
+    }
+}
+
+void TcpSocket::CloseWithState(SocketState finalState) noexcept {
+    const int oldFd = fd_;
+    fd_ = -1;
+    state_ = finalState;
+    if (oldFd >= 0) {
+        ::close(oldFd);
+    }
+}
+
+void TcpSocket::Close() noexcept {
+    if (fd_ >= 0) {
+        CloseWithState(SocketState::kClosed);
+    }
+}
+
+void TcpSocket::Abort() noexcept {
+    if (fd_ >= 0) {
+        CloseWithState(SocketState::kFailed);
+    }
 }

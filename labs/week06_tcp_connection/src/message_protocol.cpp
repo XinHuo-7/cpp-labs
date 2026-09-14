@@ -22,23 +22,30 @@ namespace protocol {
     }
 
     std::string ReceiveMessage(TcpSocket& socket) {
-        const std::string header = socket.ReceiveExact(sizeof(std::uint32_t));
+        try {
+            const std::string header = socket.ReceiveExact(sizeof(std::uint32_t));
 
-        std::uint32_t networkLength = 0;
+            std::uint32_t networkLength = 0;
 
-        std::memcpy(
-            &networkLength,
-            header.data(),
-            sizeof(networkLength)
-        );
+            std::memcpy(
+                &networkLength,
+                header.data(),
+                sizeof(networkLength)
+            );
 
-        const std::uint32_t bodyLength = ntohl(networkLength);
+            const std::uint32_t bodyLength = ntohl(networkLength);
 
-        if (bodyLength > protocol::kMaxMessageSize) {
-            throw std::length_error("message too long");
+            if (bodyLength > protocol::kMaxMessageSize) {
+                throw std::length_error("message too long");
+            }
+
+            return socket.ReceiveExact(bodyLength);
+
+        } catch(...) {
+            socket.Abort();
+            throw;
         }
-
-        return socket.ReceiveExact(bodyLength);
-        }
+        
+    }
 }
 

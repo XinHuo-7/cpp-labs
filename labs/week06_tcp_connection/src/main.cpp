@@ -21,6 +21,9 @@ int main() {
             std::cout << "客户端连接成功，本地端口:" << client.GetLocalPort() << '\n';
            
             TcpSocket connection = listener.Accept();
+            connection.SetReceiveTimeout(1000);
+            client.SetReceiveTimeout(1000);
+            std::cout << "[server] state=" << ToText(connection.GetState()) << '\n';
 
             // day4本次实验约定：请求与响应均为4字节
             // const std::string request = "PING";
@@ -43,6 +46,10 @@ int main() {
             protocol::SendMessage(connection, "Ethernet0 UP 10000Mbps");
             const std::string response = protocol::ReceiveMessage(client);
             std::cout << "[client] 收到响应: " << response << '\n';
+            connection.Close();
+            client.Close();
+            std::cout << "[server] state=" << ToText(connection.GetState()) << '\n';
+            std::cout << "[client] state=" << ToText(client.GetState()) << '\n';
 
         }
     } catch (const std::exception& error) {

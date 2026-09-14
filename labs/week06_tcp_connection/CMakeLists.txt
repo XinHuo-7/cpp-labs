@@ -62,5 +62,38 @@ if(BUILD_TESTING)
 
     set_tests_properties(message_protocol_test PROPERTIES
         TIMEOUT 10
-)
+    )
+    add_executable(socket_timeout_test
+        tests/socket_timeout_test.cpp
+    )
+
+    target_link_libraries(socket_timeout_test PRIVATE
+        tcp_connection_core
+    )
+
+    add_test(
+        NAME socket_timeout_test
+        COMMAND socket_timeout_test
+    )
+
+    set_tests_properties(socket_timeout_test PROPERTIES
+        TIMEOUT 10
+    )
+    add_executable(connection_lifecycle_test
+    tests/connection_lifecycle_test.cpp
+    )
+
+    target_link_libraries(connection_lifecycle_test PRIVATE
+        tcp_connection_core
+    )
+
+    add_test(
+        NAME connection_lifecycle_test
+        COMMAND connection_lifecycle_test
+    )
+
+    set_tests_properties(connection_lifecycle_test PROPERTIES
+        TIMEOUT 10
+    )
+
 endif()
