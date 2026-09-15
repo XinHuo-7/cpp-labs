@@ -14,6 +14,7 @@ add_compile_options(
 
 add_library(epoll_core
     src/io_utils.cpp
+    src/epoll_poller.cpp
 )
 
 target_include_directories(epoll_core PUBLIC
@@ -23,8 +24,13 @@ target_include_directories(epoll_core PUBLIC
 add_executable(nonblocking_io_demo
     src/main.cpp
 )
-
+add_executable(epoll_demo
+    src/epoll_demo.cpp
+)
 target_link_libraries(nonblocking_io_demo PRIVATE
+    epoll_core
+)
+target_link_libraries(epoll_demo PRIVATE
     epoll_core
 )
 
@@ -45,6 +51,24 @@ if(BUILD_TESTING)
     )
 
     set_tests_properties(io_utils_test PROPERTIES
+        TIMEOUT 10
+    )
+    
+    add_executable(epoll_poller_test
+    tests/epoll_poller_test.cpp
+    )
+
+    target_link_libraries(epoll_poller_test PRIVATE
+        epoll_core
+    )
+
+    add_test(
+        NAME epoll_poller_test
+        COMMAND epoll_poller_test
+    )
+
+    # 这是测试进程的兜底超时，不是 socket 或 epoll 的配置。
+    set_tests_properties(epoll_poller_test PROPERTIES
         TIMEOUT 10
     )
 endif()

@@ -29,7 +29,7 @@ int main() {
     try {
         int fds[2]{-1, -1};
         if (::socketpair(AF_UNIX, SOCK_STREAM, 0 ,fds) == -1) {
-            const int errorCode =errno;
+            const int errorCode = errno;
             throw std::system_error(
                 errorCode,
                 std::generic_category(),
