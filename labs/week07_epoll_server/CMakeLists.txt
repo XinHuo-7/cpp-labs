@@ -71,4 +71,22 @@ if(BUILD_TESTING)
     set_tests_properties(epoll_poller_test PROPERTIES
         TIMEOUT 10
     )
+
+    add_executable(epoll_et_test
+    tests/epoll_et_test.cpp
+    )
+
+    target_link_libraries(epoll_et_test PRIVATE
+        epoll_core
+    )
+
+    add_test(
+        NAME epoll_et_test
+        COMMAND epoll_et_test
+    )
+
+    # 即使实现出错，也不允许测试无限等待。
+    set_tests_properties(epoll_et_test PROPERTIES
+        TIMEOUT 10
+    )
 endif()
