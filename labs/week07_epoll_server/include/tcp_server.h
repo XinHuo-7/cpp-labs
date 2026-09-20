@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
+#include <chrono>
 
 namespace net {
     class TcpServer {
@@ -14,7 +15,8 @@ namespace net {
             // port 为 0：由操作系统分配可用端口。
             // 第二个参数控制统计周期，默认每 1000 毫秒一次。
             // 保留默认值，所以原来的 TcpServer server; 仍然可以使用。
-            explicit TcpServer(std::uint16_t port = 0, int statisticsIntervalMs = 1000);
+            // 新增 idleTimeoutMs：空闲超时时间，0 表示禁用清理。
+            explicit TcpServer(std::uint16_t port = 0, int statisticsIntervalMs = 1000, int idleTimeoutMs = 5000);
 
             // 成员对象负责清理资源：
             // connections_ 关闭客户端连接，listener_ 关闭监听 socket。
@@ -51,6 +53,11 @@ namespace net {
                 return timerTicks_;
             }
 
+            // 空闲超时关闭数，是总关闭数的一部分。
+            std::size_t IdleClosedCount() const noexcept {
+                return idleClosedCount_;
+            }
+
         private:
             void AcceptReady();
             void HandleClient(int fd, std::uint32_t events);
@@ -60,12 +67,25 @@ namespace net {
             EpollPoller poller_;
             UniqueFd listener_;
             TimerFd statisticsTimer_;
+            
+            // 时钟类型别名，用于计算经过的时长。
+            using Clock = std::chrono::steady_clock;
 
+            // 每条连接同时保存资源和最后活动时间。
+            struct Connection {
+                UniqueFd socket;    
+                Clock::time_point lastActive;
+            };
+            void CloseIdleConnections();
+
+            int idleTimeoutsMs_{0};
+            std::size_t idleClosedCount_{0};
+            
             // key：连接的 fd。
             // value：真正拥有这个 fd 的 RAII 对象。
             //
             // 删除一项时，UniqueFd 析构，连接随之关闭。
-            std::unordered_map<int, UniqueFd> connections_;
+            std::unordered_map<int, Connection> connections_;
             std::uint16_t port_{0};
 
             // 本练习所有服务端操作都发生在同一线程，不需要 atomic。

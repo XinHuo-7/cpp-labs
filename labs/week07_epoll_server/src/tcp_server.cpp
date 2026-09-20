@@ -5,13 +5,14 @@
 #include <stdexcept>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
 namespace net {
-    TcpServer::TcpServer(std::uint16_t port, int statisticsIntervalMs) : listener_(::socket(
+    TcpServer::TcpServer(std::uint16_t port, int statisticsIntervalMs, int idleTimeoutMs) : listener_(::socket(
         AF_INET,
         SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC,
         0
@@ -21,6 +22,12 @@ namespace net {
         if (!listener_.IsValid()) {
             throw std::system_error(errno, std::generic_category(), "socket failed");
         }
+
+        if (idleTimeoutMs < 0) {
+            throw std::invalid_argument("idle timeout must be nonnegative");
+        }
+        idleTimeoutsMs_ = idleTimeoutMs;
+
 
         sockaddr_in address{};
         address.sin_family  = AF_INET;
@@ -95,8 +102,9 @@ void TcpServer::AcceptReady() {
 
             // std::move 将 fd 的所有权转移到容器中的 UniqueFd。
             // 不是复制 fd 的所有权，也没有创建新的 socket。
-
-            connections_.emplace(fd, std::move(connection));
+            // 接受连接时开始计算空闲时间。
+            // 两个初始化值分别对应 socket 和 lastActive。
+            connections_.emplace(fd, Connection{std::move(connection), Clock::now()});
 
             try {
                 // EPOLLRDHUP：关注对端关闭发送方向。
@@ -133,7 +141,9 @@ void TcpServer::CloseClient(int fd) {
 }
 
 void TcpServer::HandleClient(int fd, std::uint32_t events) {
-    if (connections_.find(fd) == connections_.end()) {
+    const auto it = connections_.find(fd);
+    // 保存迭代器，后面通过它更新连接的活动时间。
+    if (it == connections_.end()) {
         return;
     }
 
@@ -148,6 +158,8 @@ void TcpServer::HandleClient(int fd, std::uint32_t events) {
     try {
         const auto result = DrainReadable(fd);
         if (!result.data.empty()) {
+            // 新增：只有实际读到数据才刷新时间。
+            it->second.lastActive = Clock::now();
             receivedBytes_ += result.data.size();
             std::cout << "[recv] fd = " << fd
                       << "bytes= " << result.data.size() << '\n';
@@ -184,6 +196,7 @@ void TcpServer::RunOnce(int timeoutMs) {
     const auto events = poller_.Wait(timeoutMs);
 
     bool listenerReady = false;
+    bool timerReady = false;  // 新增：记录本批是否有定时事件。
 
     for (const auto& event : events) {
         const int fd = event.data.fd;
@@ -194,7 +207,8 @@ void TcpServer::RunOnce(int timeoutMs) {
                 throw std::runtime_error("statistics timer failed");
             }
             if ((event.events & EPOLLIN) != 0) {
-                HandleTimer();
+                // 先记录，让本批客户端数据先得到处理并刷新活动时间。
+                timerReady = true;
             }
             
             // 已处理完，不再交给下面的 socket 分支。
@@ -213,6 +227,10 @@ void TcpServer::RunOnce(int timeoutMs) {
 
         HandleClient(fd, event.events);
     }
+    // 本批已有连接处理完后，再检查超时。
+    if (timerReady) {
+        HandleTimer();
+    }
     // 先处理这一批已有连接，再接受新连接。
     // 避免旧连接关闭后 fd 被新连接复用，
     // 使本批剩余事件被误认为属于新连接。
@@ -230,6 +248,7 @@ void TcpServer::HandleTimer() {
 
     if (expirations == 0) {return;}
     timerTicks_ += expirations;
+    CloseIdleConnections();
 
     // 即使积累了多个到期次数，也只输出一份当前统计。
     // 到期计数与实际执行统计输出的次数不是同一个概念。
@@ -239,7 +258,30 @@ void TcpServer::HandleTimer() {
               << " accepted=" << acceptedCount_
               << " closed=" << closedCount_
               << " bytes=" << receivedBytes_
+              << " idleClosed=" << idleClosedCount_
               << '\n';
+}
+
+void TcpServer::CloseIdleConnections() {
+    if (idleTimeoutsMs_ == 0) {
+        return;
+    }
+    const auto now = Clock::now();
+    const auto timeout = std::chrono::milliseconds(idleTimeoutsMs_);
+    std::vector<int> expireFds;
+    for (const auto& item : connections_) {
+        // item.first 是 fd，item.second 是 Connection。
+        const auto idleDuration = now - item.second.lastActive;
+        if (idleDuration >= timeout) {
+            expireFds.push_back(item.first);
+        }
+    }
+    // 先收集，再删除，避免遍历过程中删除当前元素使迭代器失效。
+    for (const int fd : expireFds) {
+        std::cout << "[idle timeout] fd=" << fd << '\n';
+        CloseClient(fd);
+        ++idleClosedCount_;
+    }
 }
 
 } // namespace net

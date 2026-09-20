@@ -242,6 +242,44 @@ void TestTimerAndNetworkTogether() {
         "client was not cleaned up");
 }
 
+void TestIdleTimeoutKeepsActiveClient() {
+    // 每 25 毫秒检查，空闲超时为 800 毫秒。
+    net::TcpServer server(0, 25, 800);
+    auto active = ConnectClient(server.GetPort());
+    auto idle = ConnectClient(server.GetPort());
+    PumpUntil(server, [&server]{return server.ConnectionCount() == 2;}, "two clients were not accepted");
+    // 连续运行至少 1200 毫秒，超过空闲超时时间。
+    // A 每约 100 毫秒发送一次；B 始终不发送。
+    for (int i = 0; i < 12; ++i) {
+        const auto nextSend = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+        // 等待期间继续推进服务端，不能只 sleep。
+        while (std::chrono::steady_clock::now() < nextSend) {
+            server.RunOnce(10);
+        }
+        SendAll(active.Get(), "X");
+        const auto expected = static_cast<std::size_t>(i + 1);
+        PumpUntil(
+            server,
+            [&server, expected] {
+                return server.ReceivedBytes() == expected;
+            },
+            "active client stopped receiving");
+    }
+     // 关键断言：只清理了空闲的 B，活跃的 A 仍然存在。
+    Require(server.IdleClosedCount() == 1, "wrong idle closure count");
+    Require(server.ConnectionCount() == 1, "active client was closed");
+
+    // A 正常结束发送，不应额外计为空闲超时。
+    EndSending(active.Get());
+     PumpUntil(
+        server,
+        [&server] { return server.ConnectionCount() == 0; },
+        "active client was not cleaned up");
+
+    Require(server.IdleClosedCount() == 1, "EOF counted as idle timeout");
+
+}
+
 
 }
 
@@ -251,6 +289,7 @@ int main() {
         TestMultipleClients();
         TestEmptyPeerClose();
         TestTimerAndNetworkTogether();
+        TestIdleTimeoutKeepsActiveClient();
         std::cout << "All Tcp server tests passed\n";
     } catch (const std::exception& error) {
         std::cerr << "Test failed: " << error.what() << '\n';
