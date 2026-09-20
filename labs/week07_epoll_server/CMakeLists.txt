@@ -15,6 +15,20 @@ add_compile_options(
 add_library(epoll_core
     src/io_utils.cpp
     src/epoll_poller.cpp
+    src/tcp_server.cpp
+    src/timer_fd.cpp
+)
+
+# 为 Linux 的 accept4 等扩展接口提供声明。
+target_compile_definitions(epoll_core PRIVATE
+    _GNU_SOURCE
+)
+add_executable(tcp_server_demo
+    src/tcp_server_demo.cpp
+)
+
+target_link_libraries(tcp_server_demo PRIVATE
+    epoll_core
 )
 
 target_include_directories(epoll_core PUBLIC
@@ -88,5 +102,39 @@ if(BUILD_TESTING)
     # 即使实现出错，也不允许测试无限等待。
     set_tests_properties(epoll_et_test PROPERTIES
         TIMEOUT 10
+    )
+    add_executable(tcp_server_test
+        tests/tcp_server_test.cpp
+    )
+
+    target_link_libraries(tcp_server_test PRIVATE
+        epoll_core
+    )
+
+    add_test(
+        NAME tcp_server_test
+        COMMAND tcp_server_test
+    )
+
+    # 即使网络操作或事件循环实现有误，也不能无限挂住测试。
+    set_tests_properties(tcp_server_test PROPERTIES
+        TIMEOUT 15
+    )
+    add_executable(timer_fd_test
+        tests/timer_fd_test.cpp
+    )
+
+    target_link_libraries(timer_fd_test PRIVATE
+        epoll_core
+    )
+
+    add_test(
+        NAME timer_fd_test
+        COMMAND timer_fd_test
+    )
+
+    # 测试进程的兜底超时，不是定时器的触发周期。
+    set_tests_properties(timer_fd_test PROPERTIES
+        TIMEOUT 15
     )
 endif()
