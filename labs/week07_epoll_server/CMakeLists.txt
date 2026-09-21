@@ -48,6 +48,17 @@ target_link_libraries(epoll_demo PRIVATE
     epoll_core
 )
 
+add_executable(core_debug_demo
+    src/core_debug_demo.cpp
+)
+
+# 仅用于排障练习目标：
+# -g 生成调试信息；-O0 关闭优化，方便观察变量和调用栈。
+target_compile_options(core_debug_demo PRIVATE
+    -g
+    -O0
+)
+
 include(CTest)
 
 if(BUILD_TESTING)
@@ -136,5 +147,16 @@ if(BUILD_TESTING)
     # 测试进程的兜底超时，不是定时器的触发周期。
     set_tests_properties(timer_fd_test PROPERTIES
         TIMEOUT 15
+    )
+
+    # 自动化测试只执行正常模式，不传 --crash。
+    add_test(
+        NAME core_debug_normal_test
+        COMMAND core_debug_demo
+    )
+
+    set_tests_properties(core_debug_normal_test PROPERTIES
+        TIMEOUT 5
+        PASS_REGULAR_EXPRESSION "Normal path passed"
     )
 endif()
