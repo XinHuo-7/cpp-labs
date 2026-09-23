@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(week07_epoll_server LANGUAGES CXX)
+project(week08_epoll_service_delivery LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,6 +18,7 @@ add_library(epoll_core
     src/tcp_server.cpp
     src/timer_fd.cpp
     src/logger.cpp
+    src/server_config.cpp
 )
 
 # 为 Linux 的 accept4 等扩展接口提供声明。
@@ -172,5 +173,22 @@ if(BUILD_TESTING)
     add_test(
         NAME logger_test
         COMMAND logger_test
+    )
+
+    add_executable(server_config_test
+        tests/server_config_test.cpp
+    )
+
+    target_link_libraries(server_config_test PRIVATE
+        epoll_core
+    )
+
+    add_test(
+        NAME server_config_test
+        COMMAND server_config_test
+    )
+
+    set_tests_properties(server_config_test PROPERTIES
+        TIMEOUT 5
     )
 endif()

@@ -1,11 +1,16 @@
 #include "tcp_server.h"
 #include "logger.h"
+#include "server_config.h"
 
 #include <exception>
 #include <iostream>
+#include <string>
 
-int main() {
+int main(int argc, char* argv[]) {
     try {
+        // 先解析配置，再用配置构造各个业务对象。
+        const net::ServerConfig config = net::ParseServeConfig(argc, argv);
+
         // Logger 必须先创建，后续启动过程才能使用它记录日志。
         net::Logger logger{
             std::cout,
@@ -13,7 +18,11 @@ int main() {
         };
 
         // TcpServer 构造期间会创建监听 socket、绑定端口并加入 epoll。
-        net::TcpServer server;
+        net::TcpServer server{
+            config.port,
+            config.statisticsIntervalMs,
+            config.idleTimeoutMs
+        };
         // std::cout << "监听127.0.0.1:" << server.GetPort()
         //           << "\n按 Ctrl+C 结束演示" << std::endl;
         const std::string listenMessage =
