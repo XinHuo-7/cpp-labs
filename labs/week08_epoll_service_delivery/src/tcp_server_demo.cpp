@@ -9,19 +9,23 @@
 int main(int argc, char* argv[]) {
     try {
         // 先解析配置，再用配置构造各个业务对象。
-        const net::ServerConfig config = net::ParseServeConfig(argc, argv);
+        const net::ServerConfig config = net::ParseServerConfig(argc, argv);
 
         // Logger 必须先创建，后续启动过程才能使用它记录日志。
         net::Logger logger{
             std::cout,
-            net::LogLevel::kInfo
+            config.minimumLogLevel
         };
 
         // TcpServer 构造期间会创建监听 socket、绑定端口并加入 epoll。
         net::TcpServer server{
             config.port,
             config.statisticsIntervalMs,
-            config.idleTimeoutMs
+            config.idleTimeoutMs,
+
+            // &logger 取得 Logger 对象的地址。
+            // TcpServer 不拥有该对象，只在运行期间使用它。
+            &logger
         };
         // std::cout << "监听127.0.0.1:" << server.GetPort()
         //           << "\n按 Ctrl+C 结束演示" << std::endl;

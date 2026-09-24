@@ -24,6 +24,6 @@ struct ServerConfig {
 
 // argc、argv 直接接收 main() 传入的命令行参数。
 // 解析失败时抛出 std::invalid_argument。
-ServerConfig ParseServeConfig(int argc, char* argv[]);
+ServerConfig ParseServerConfig(int argc, char* argv[]);
 
 } // namespace net

@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <system_error>
 #include <utility>
@@ -12,7 +13,7 @@
 #include <sys/socket.h>
 
 namespace net {
-    TcpServer::TcpServer(std::uint16_t port, int statisticsIntervalMs, int idleTimeoutMs) : listener_(::socket(
+    TcpServer::TcpServer(std::uint16_t port, int statisticsIntervalMs, int idleTimeoutMs, Logger* logger) : logger_(logger), listener_(::socket(
         AF_INET,
         SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC,
         0
@@ -118,7 +119,9 @@ void TcpServer::AcceptReady() {
             }
             ++acceptedCount_;
 
-            std::cout << "[accept] fd = " << fd << '\n';          
+            std::ostringstream message;
+            message << "accepted connection fd=" << fd;
+            WriteLog(LogLevel::kInfo, message.str());         
 
         }
     }
@@ -137,7 +140,9 @@ void TcpServer::CloseClient(int fd) {
     connections_.erase(it);
 
     ++closedCount_;
-    std::cout << "[close] fd=" << fd << '\n';
+    std::ostringstream message;
+    message << "closed connection fd=" << fd;
+    WriteLog(LogLevel::kInfo, message.str());
 }
 
 void TcpServer::HandleClient(int fd, std::uint32_t events) {
@@ -161,8 +166,12 @@ void TcpServer::HandleClient(int fd, std::uint32_t events) {
             // 新增：只有实际读到数据才刷新时间。
             it->second.lastActive = Clock::now();
             receivedBytes_ += result.data.size();
-            std::cout << "[recv] fd = " << fd
-                      << "bytes= " << result.data.size() << '\n';
+            std::ostringstream message;
+            message << "received fd=" << fd
+                    << " bytes=" << result.data.size();
+            // 每次接收的日志比较频繁，使用 DEBUG 级别。
+            // 默认 INFO 模式下不会打印，避免日志过多。
+            WriteLog(LogLevel::kDebug, message.str());
             // 当前只统计收到的字节，不把这一批数据当作完整消息。
             // 后续接入协议层时，需要维护每条连接的接收缓冲区。
         }
@@ -172,13 +181,15 @@ void TcpServer::HandleClient(int fd, std::uint32_t events) {
         shouldClose = result.peerClosed;
     } catch (const std::system_error& error) {
         // 单条连接的接收错误只结束这条连接。
-        std::cerr << "[recv error] fd = " << fd << " reason=" << error.what() << '\n';
+       std::ostringstream message;
+        message << "receive failed fd=" << fd << " reason=" << error.what();
+        WriteLog(LogLevel::kError, message.str());
         shouldClose = true;
     } catch (const std::length_error& error) {
         // 沿用 Day3 策略：单次接收批次超限，放弃该连接。
-        std::cerr << "[receive limit] fd=" << fd
-                  << " reason=" << error.what() << '\n';
-        shouldClose = true;
+        std::ostringstream message;
+        message << "receive limit reached fd=" << fd << " reason=" << error.what();
+        WriteLog(LogLevel::kWarning, message.str());
     }
 
     // 本练习采用简单策略：发生错误或完全挂断时关闭连接。
@@ -252,14 +263,15 @@ void TcpServer::HandleTimer() {
 
     // 即使积累了多个到期次数，也只输出一份当前统计。
     // 到期计数与实际执行统计输出的次数不是同一个概念。
-    std::cout << "[stats]"
+    std::ostringstream message;
+    message << "[statistics]"
               << " ticks=" << timerTicks_
               << " active=" << connections_.size()
               << " accepted=" << acceptedCount_
               << " closed=" << closedCount_
               << " bytes=" << receivedBytes_
-              << " idleClosed=" << idleClosedCount_
-              << '\n';
+              << " idleClosed=" << idleClosedCount_;
+    WriteLog(LogLevel::kInfo, message.str());
 }
 
 void TcpServer::CloseIdleConnections() {
@@ -278,10 +290,21 @@ void TcpServer::CloseIdleConnections() {
     }
     // 先收集，再删除，避免遍历过程中删除当前元素使迭代器失效。
     for (const int fd : expireFds) {
-        std::cout << "[idle timeout] fd=" << fd << '\n';
+        std::ostringstream message;
+        message << "[idle timeout] fd=" << fd;
+        WriteLog(LogLevel::kWarning, message.str());
         CloseClient(fd);
         ++idleClosedCount_;
     }
+}
+
+void TcpServer::WriteLog(LogLevel level, std::string_view message) {
+    // logger_ 是可选依赖。
+    // 没有传入 Logger 时，服务端功能仍然正常，只是不输出日志。
+    if (logger_ == nullptr) {
+        return;
+    }
+    logger_->Log(level, message);
 }
 
 } // namespace net

@@ -53,7 +53,7 @@ LogLevel ParseLogLevel(std::string_view text) {
 }
 } // namespace
 
-ServerConfig ParseServeConfig(int argc, char*argv[]) {
+ServerConfig ParseServerConfig(int argc, char*argv[]) {
     ServerConfig config;
 
     // argv[0] 是程序名称，所以从 argv[1] 开始读取。
@@ -74,7 +74,7 @@ ServerConfig ParseServeConfig(int argc, char*argv[]) {
                 throw std::invalid_argument("stats-ms must be greater than 0");
             }
 
-        } else if (option == "--ilde-ms") {
+        } else if (option == "--idle-ms") {
             config.idleTimeoutMs = ParseInteger(ReadOptionValue(argc, argv, index, option), option);
             
             if (config.idleTimeoutMs < 0) {

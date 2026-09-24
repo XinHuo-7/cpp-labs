@@ -1,4 +1,5 @@
 #include "tcp_server.h"
+#include "logger.h"
 
 #include <cerrno>
 #include <chrono>
@@ -7,6 +8,8 @@
 #include <stdexcept>
 #include <string_view>
 #include <system_error>
+#include <sstream>
+#include <string>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -280,6 +283,65 @@ void TestIdleTimeoutKeepsActiveClient() {
 
 }
 
+void TestServerUsesInjectedLogger() {
+    std::ostringstream output;
+
+    // 使用 DEBUG，保证 INFO 和 DEBUG 日志都能被记录。
+    net::Logger logger{
+        output,
+        net::LogLevel::kDebug
+    };
+
+    // 关闭空闲清理，避免它影响本测试。
+    net::TcpServer server{
+        0,
+        1000,
+        0,
+        &logger
+    };
+    auto client = ConnectClient(server.GetPort());
+
+    PumpUntil(
+        server,
+        [&server] {return server.ConnectionCount() == 1;},
+        "client was not accepted"
+    );
+    SendAll(client.Get(), "ABC");
+
+    PumpUntil(
+        server,
+        [&server] {return server.ReceivedBytes() == 3;},
+        "data was not received"
+    );
+
+    EndSending(client.Get());
+
+    PumpUntil(
+        server,
+        [&server] {
+            return server.ConnectionCount() == 0;
+        },
+        "client was not closed"
+    );
+    const std::string logs = output.str();
+
+    // fd 是运行时动态分配的，因此只检查稳定的日志内容。
+    Require(
+        logs.find("[INFO] accepted connection") != std::string::npos,
+        "accept log was not written"
+    );
+
+    Require(
+        logs.find("[DEBUG] received") != std::string::npos,
+        "receive log was not written"
+    );
+
+    Require(
+        logs.find("[INFO] closed connection") != std::string::npos,
+        "close log was not written"
+    );
+}   
+
 
 }
 
@@ -290,6 +352,7 @@ int main() {
         TestEmptyPeerClose();
         TestTimerAndNetworkTogether();
         TestIdleTimeoutKeepsActiveClient();
+        TestServerUsesInjectedLogger();
         std::cout << "All Tcp server tests passed\n";
     } catch (const std::exception& error) {
         std::cerr << "Test failed: " << error.what() << '\n';

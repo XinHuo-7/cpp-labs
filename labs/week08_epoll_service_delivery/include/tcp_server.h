@@ -3,11 +3,13 @@
 #include "epoll_poller.h"
 #include "io_utils.h"
 #include "timer_fd.h"
+#include "logger.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
 #include <chrono>
+#include <string_view>
 
 namespace net {
     class TcpServer {
@@ -16,7 +18,11 @@ namespace net {
             // 第二个参数控制统计周期，默认每 1000 毫秒一次。
             // 保留默认值，所以原来的 TcpServer server; 仍然可以使用。
             // 新增 idleTimeoutMs：空闲超时时间，0 表示禁用清理。
-            explicit TcpServer(std::uint16_t port = 0, int statisticsIntervalMs = 1000, int idleTimeoutMs = 5000);
+            explicit TcpServer(std::uint16_t port = 0, int statisticsIntervalMs = 1000, int idleTimeoutMs = 5000,
+            // Logger* 表示可选的、不归 TcpServer 所有的日志对象。
+            // nullptr 表示本次运行不输出服务端内部日志。
+            Logger* logger = nullptr
+            );
 
             // 成员对象负责清理资源：
             // connections_ 关闭客户端连接，listener_ 关闭监听 socket。
@@ -81,6 +87,10 @@ namespace net {
             int idleTimeoutsMs_{0};
             std::size_t idleClosedCount_{0};
             
+            // 集中处理日志输出。
+            // TcpServer 不直接依赖 cout 或 cerr。
+            void WriteLog(LogLevel level, std::string_view message);
+
             // key：连接的 fd。
             // value：真正拥有这个 fd 的 RAII 对象。
             //
@@ -93,5 +103,8 @@ namespace net {
             std::size_t closedCount_{0};
             std::size_t receivedBytes_{0};
             std::uint64_t timerTicks_{0};
+            // 拥有指针：TcpServer 只使用 Logger，不负责销毁它。
+            // 外部 Logger 的生命周期必须长于 TcpServer。
+            Logger* logger_{nullptr};
     };
 } // namespace net

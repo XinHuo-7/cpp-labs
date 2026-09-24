@@ -36,7 +36,7 @@ void TestParseCustomConfig() {
         logOption,
         logValue
     };
-    const net::ServerConfig config = net::ParseServeConfig(static_cast<int>(arguments.size()), arguments.data());
+    const net::ServerConfig config = net::ParseServerConfig(static_cast<int>(arguments.size()), arguments.data());
     Require(config.port == 8080, "port was not parsed");
     Require(config.statisticsIntervalMs == 2000, "statistcs interval was not parsed");
     Require(config.idleTimeoutMs == 10000, "idle timeout was not parsed");
@@ -51,7 +51,7 @@ void TestRejectInvalidPort() {
     char* arguments[]{program, option, value};
     bool rejected{false};
     try {
-        (void)net::ParseServeConfig(3, arguments);
+        (void)net::ParseServerConfig(3, arguments);
     } catch (const std::invalid_argument&) {
         rejected = true;
     }
