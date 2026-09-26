@@ -56,13 +56,60 @@ void TestRejectInvalidPort() {
         rejected = true;
     }
     Require(rejected, "invalid port was not rejected");
-} 
+}
+
+void TestInformationalOptions() {
+    char program[] = "tcp_server_demo";
+    char helpOption[] = "--help";
+
+    char *helpArguments[]{
+        program,
+        helpOption
+    };
+
+    const net::ServerConfig helpConfig = net::ParseServerConfig(2, helpArguments);
+    Require(
+        helpConfig.action == net::ProgramAction::kShowHelp,
+        "--help did not select help action"
+    );
+
+    const std::string helpText =
+        net::BuildHelpText(program);
+
+    // 帮助文本应包含关键配置项。
+    Require(
+        helpText.find("--port") != std::string::npos,
+        "help text did not contain --port"
+    );
+
+    Require(
+        helpText.find("--log-level") != std::string::npos,
+        "help text did not contain --log-level"
+    );
+    char versionOption[] = "--version";
+
+    char* versionArguments[] {
+        program,
+        versionOption
+    };
+    const net::ServerConfig versionConfig = net::ParseServerConfig(2, versionArguments);
+
+    Require(
+        versionConfig.action ==
+            net::ProgramAction::kShowVersion,
+        "--version did not select version action"
+    );
+
+}
+
+
 } // namespace
 
 int main() {
     try {
         TestParseCustomConfig();
         TestRejectInvalidPort();
+        TestInformationalOptions();
 
         std::cout << "All server config tests passed\n";
         return 0;

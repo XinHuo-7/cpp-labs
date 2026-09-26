@@ -12,6 +12,21 @@ int main(int argc, char* argv[]) {
         // 先解析配置，再用配置构造各个业务对象。
         const net::ServerConfig config = net::ParseServerConfig(argc, argv);
 
+        const std::string_view programName = argc > 0 ? std::string_view{argv[0]} : std::string_view{"tcp_server_demo"};
+
+        switch (config.action) {
+            case net::ProgramAction::kShowHelp:
+                std::cout << net::BuildHelpText(programName);
+                return 0;
+            
+            case net::ProgramAction::kShowVersion:
+                std::cout << "tcp_server_demo" << net::kProgramVersion << '\n';
+                return 0;
+            
+            case net::ProgramAction::kRunServer:
+                break;
+        }
+
         // Logger 必须先创建，后续启动过程才能使用它记录日志。
         net::Logger logger{
             std::cout,

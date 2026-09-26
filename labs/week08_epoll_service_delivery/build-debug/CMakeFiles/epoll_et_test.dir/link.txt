@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/epoll_et_test.dir/tests/epoll_et_test.cpp.o -o epoll_et_test  libepoll_core.a 

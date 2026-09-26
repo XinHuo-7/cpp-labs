@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/timer_fd_test.dir/tests/timer_fd_test.cpp.o -o timer_fd_test  libepoll_core.a 

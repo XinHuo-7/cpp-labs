@@ -62,6 +62,19 @@ target_compile_options(core_debug_demo PRIVATE
     -O0
 )
 
+option(ENABLE_SANITIZERS "Enable AddressSanitizer and UBSan" OFF)
+
+if(ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(tcp_server_demo PRIVATE
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+    )
+
+    target_link_options(tcp_server_demo PRIVATE
+        -fsanitize=address,undefined
+    )
+endif()
+
 include(CTest)
 
 if(BUILD_TESTING)
@@ -210,3 +223,4 @@ if(BUILD_TESTING)
         TIMEOUT 5
     )
 endif()
+

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libepoll_core.a CMakeFiles/epoll_core.dir/src/io_utils.cpp.o CMakeFiles/epoll_core.dir/src/epoll_poller.cpp.o CMakeFiles/epoll_core.dir/src/tcp_server.cpp.o CMakeFiles/epoll_core.dir/src/timer_fd.cpp.o CMakeFiles/epoll_core.dir/src/logger.cpp.o CMakeFiles/epoll_core.dir/src/server_config.cpp.o CMakeFiles/epoll_core.dir/src/shutdown_signal.cpp.o
+/usr/bin/ranlib libepoll_core.a

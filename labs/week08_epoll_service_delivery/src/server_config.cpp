@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <sstream>
 
 namespace net {
 namespace {
@@ -31,7 +32,7 @@ int ParseInteger(std::string_view text, std::string_view option) {
     const char* end = begin + text.size();
     const auto [next, error] = std::from_chars(begin, end, value);
     if (error != std::errc{} || next != end) {
-        throw std::invalid_argument(std::string{option} + "requires a valid integer");
+        throw std::invalid_argument(std::string{option} + " requires a valid integer");
     }
     return value;
 }
@@ -59,6 +60,14 @@ ServerConfig ParseServerConfig(int argc, char*argv[]) {
     // argv[0] 是程序名称，所以从 argv[1] 开始读取。
     for (int index = 1; index < argc; ++index) {
         const std::string_view option{argv[index]};
+        if (option == "--help" || option == "-h") {
+            config.action = ProgramAction::kShowHelp;
+            return config;
+        }
+        if (option == "--version") {
+            config.action = ProgramAction::kShowVersion;
+            return config;
+        }
         if (option == "--port") {
             const int port = ParseInteger(ReadOptionValue(argc, argv, index, option), option);
 
@@ -89,4 +98,30 @@ ServerConfig ParseServerConfig(int argc, char*argv[]) {
     }
     return config;
 }
+
+std::string BuildHelpText(std::string_view programName) {
+    std::ostringstream output;
+
+    // ostringstream 先在内存中拼接完整文本，
+    // 最后通过 str() 取得 std::string。
+    output
+        << "Usage: " << programName << " [options]\n"
+        << '\n'
+        << "Options:\n"
+        << "  --port <0-65535>       "
+           "Listening port; 0 lets the system choose\n"
+        << "  --stats-ms <number>    "
+           "Statistics interval in milliseconds\n"
+        << "  --idle-ms <number>     "
+           "Idle timeout in milliseconds; 0 disables it\n"
+        << "  --log-level <level>    "
+           "debug, info, warning or error\n"
+        << "  -h, --help             "
+           "Show this help message\n"
+        << "  --version              "
+           "Show program version\n";
+
+    return output.str();
+}
+
 } // namespace net
