@@ -1,6 +1,7 @@
 #include "tcp_server.h"
 #include "logger.h"
 #include "server_config.h"
+#include "shutdown_signal.h"
 
 #include <exception>
 #include <iostream>
@@ -16,6 +17,8 @@ int main(int argc, char* argv[]) {
             std::cout,
             config.minimumLogLevel
         };
+        // 必须在进入事件循环之前安装信号处理函数。
+        net::InstallShutdownSignalHandlers();
 
         // TcpServer 构造期间会创建监听 socket、绑定端口并加入 epoll。
         net::TcpServer server{
@@ -34,16 +37,23 @@ int main(int argc, char* argv[]) {
             std::to_string(server.GetPort());
         logger.Log(net::LogLevel::kInfo, listenMessage);
         logger.Log(net::LogLevel::kInfo,"按 Ctrl+C 结束演示");
-        for (;;) {
-            // 没有事件时允许等待，避免空转消耗 CPU。
-            // socket 非阻塞，不代表 epoll_wait 也必须不等待。
-
-            // 没有事件就等待；定时器到期同样会唤醒 epoll_wait。
-            // -1 不代表停止处理，也不代表定时器不会触发。
-            server.RunOnce(-1);
+        
+        while (!net::IsShutdownRequested()) {
+            // 最多等待 200ms。
+            // 有网络、定时器事件时会提前返回。
+            server.RunOnce(200);
         }
+        logger.Log(
+            net::LogLevel::kInfo,
+            "shutdown requested; server is stopping"
+        );
+
+        // 离开 try 作用域后，server 正常析构：
+        // 连接、listener、timerfd 和 epoll fd 都由 RAII 关闭。
+
     } catch (const std::exception& error) {
         std::cerr << "server failed: " << error.what() << '\n';
         return 1;
     }
+    return 0;
 }

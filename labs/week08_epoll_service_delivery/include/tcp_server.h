@@ -71,6 +71,9 @@ namespace net {
             void HandleTimer();
 
             EpollPoller poller_;
+            // 拥有指针：TcpServer 只使用 Logger，不负责销毁它。
+            // 外部 Logger 的生命周期必须长于 TcpServer。
+            Logger* logger_{nullptr};
             UniqueFd listener_;
             TimerFd statisticsTimer_;
             
@@ -103,8 +106,5 @@ namespace net {
             std::size_t closedCount_{0};
             std::size_t receivedBytes_{0};
             std::uint64_t timerTicks_{0};
-            // 拥有指针：TcpServer 只使用 Logger，不负责销毁它。
-            // 外部 Logger 的生命周期必须长于 TcpServer。
-            Logger* logger_{nullptr};
     };
 } // namespace net

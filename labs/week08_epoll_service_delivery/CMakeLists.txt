@@ -19,6 +19,7 @@ add_library(epoll_core
     src/timer_fd.cpp
     src/logger.cpp
     src/server_config.cpp
+    src/shutdown_signal.cpp
 )
 
 # 为 Linux 的 accept4 等扩展接口提供声明。
@@ -189,6 +190,23 @@ if(BUILD_TESTING)
     )
 
     set_tests_properties(server_config_test PROPERTIES
+        TIMEOUT 5
+    )
+
+    add_executable(shutdown_signal_test
+        tests/shutdown_signal_test.cpp
+    )
+
+    target_link_libraries(shutdown_signal_test PRIVATE
+        epoll_core
+    )
+
+    add_test(
+        NAME shutdown_signal_test
+        COMMAND shutdown_signal_test
+    )
+
+    set_tests_properties(shutdown_signal_test PROPERTIES
         TIMEOUT 5
     )
 endif()

@@ -91,6 +91,15 @@ namespace net {
 
         if (count == -1) {
             const int errorCode = errno;
+            // EINTR 表示等待过程被信号中断。
+            // 它不代表 epoll 或服务端发生故障。
+            //
+            // 返回空事件集合，让 main 循环有机会检查
+            // IsShutdownRequested()。
+            if (errorCode == EINTR) {
+                events.clear();
+                return events;
+            }
 
             // Day2 暂时统一报告错误，包括 EINTR。
             // 不盲目用完整 timeout 重试，以免反复延长总等待时间。
