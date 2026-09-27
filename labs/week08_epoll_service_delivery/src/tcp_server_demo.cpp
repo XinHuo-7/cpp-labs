@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
                 return 0;
             
             case net::ProgramAction::kShowVersion:
-                std::cout << "tcp_server_demo" << net::kProgramVersion << '\n';
+                std::cout << "tcp_server_demo " << net::kProgramVersion << '\n';
                 return 0;
             
             case net::ProgramAction::kRunServer:

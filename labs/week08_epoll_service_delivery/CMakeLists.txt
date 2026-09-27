@@ -34,6 +34,12 @@ target_link_libraries(tcp_server_demo PRIVATE
     epoll_core
 )
 
+# 只安装最终可执行程序；epoll_core 是程序内部使用的库。
+# bin 是相对于安装前缀的目录，例如 <安装前缀>/bin/tcp_server_demo。
+install(TARGETS tcp_server_demo
+    RUNTIME DESTINATION bin
+)
+
 target_include_directories(epoll_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
