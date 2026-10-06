@@ -6,3 +6,7 @@ target_compile_features(value_category_demo PRIVATE cxx_std_17)
 
 enable_testing()
 add_test(NAME value_category_test COMMAND value_category_demo)
+
+add_executable(forward_demo src/day2_forward_demo.cpp)
+target_compile_features(forward_demo PRIVATE cxx_std_17)
+add_test(NAME forward_test COMMAND forward_demo)
