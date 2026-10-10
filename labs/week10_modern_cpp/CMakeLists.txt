@@ -26,3 +26,7 @@ add_test(NAME optional_test COMMAND optional_demo)
 add_executable(variant_demo src/day6_variant_demo.cpp)
 target_compile_features(variant_demo PRIVATE cxx_std_17)
 add_test(NAME variant_test COMMAND variant_demo)
+
+add_executable(summary_demo src/day7_summary_demo.cpp)
+target_compile_features(summary_demo PRIVATE cxx_std_17)
+add_test(NAME summary_test COMMAND summary_demo)
