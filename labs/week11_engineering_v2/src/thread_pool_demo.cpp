@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <functional>
+#include <future>
 #include <iostream>
 #include <mutex>
 #include <queue>
@@ -13,8 +14,10 @@
 
 class ThreadPool {
 public:
-    explicit ThreadPool(std::size_t threadCount) {
-        if (threadCount == 0) {
+    // maxPendingTasks 限制的是“正在排队”的任务数，
+    // 不包括工作线程已经取走、正在执行的任务。
+    ThreadPool(std::size_t threadCount, std::size_t maxPendingTasks) : maxPendingTasks_(maxPendingTasks) {
+        if (threadCount == 0 || maxPendingTasks == 0) {
             throw std::invalid_argument("threadCount must be positive");
         }
         try {
@@ -47,7 +50,11 @@ public:
                 return false;
             }
 
-            // 把任务移入队列；队列和 stopping_ 都由同一把锁保护。
+            // 新增：检查和入队必须在同一把锁内。
+            // 否则多个提交者可能同时看见“还有空位”，导致队列超限。
+            if (tasks_.size() >= maxPendingTasks_) {
+                return false;
+            }
             tasks_.push(std::move(task));
         }
 
@@ -100,6 +107,7 @@ private:
         }
     }
 
+    const std::size_t maxPendingTasks_;
     std::vector<std::thread> workers_;
     std::queue<std::function<void()>> tasks_;
     std::mutex mutex_;
@@ -109,27 +117,46 @@ private:
 };
 
 int main() {
-    ThreadPool pool{2};
+    // 1 个工作线程、1 个等待位置，方便准确验证“队列已满”。
+    ThreadPool pool{1, 1};
     std::atomic<int> completed{0};
 
-    for (int i = 0; i < 8; ++i) {
-        const bool accepted = pool.Sumbmit([&completed] {
-            completed.fetch_add(1, std::memory_order_relaxed);
-        });
+    std::promise<void> startedSignal;
+    auto started = startedSignal.get_future();
 
-        if (!accepted) {
-            throw std::runtime_error("task was rejected unexpectedly");
-        }
-    }
+    std::promise<void> releaseSignal;
+    auto released = releaseSignal.get_future().share();
 
-    pool.Stop();
+    const bool firstAccepted = pool.Sumbmit([&] {
+        // 通知主线程：第一个任务已被工作线程取走。
+        startedSignal.set_value();
 
-    // Stop 返回时，两个工作线程都已结束，已有任务应全部完成。
-    assert(completed.load(std::memory_order_relaxed) == 8);
+        // 暂时不结束，让唯一的工作线程保持忙碌。
+        released.wait();
+        completed.fetch_add(1, std::memory_order_relaxed);
+    });
+    assert(firstAccepted);
+    started.wait();
+
+    // 第一个任务正在执行，因此队列目前是空的。
+    const bool secondAccepted = pool.Sumbmit([&] {
+        completed.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    // 第二个任务占满唯一的排队位置，第三个应被拒绝。
+    const bool thirdAccepted = pool.Sumbmit([&] {
+        completed.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    assert(secondAccepted);
+    assert(!thirdAccepted);
+
+    releaseSignal.set_value();   // 允许第一个任务结束。
+    pool.Stop();                 // 等待前两个任务完成。
+
+    assert(completed.load(std::memory_order_relaxed) == 2);
     assert(pool.FailedTaskCount() == 0);
-    
-    const bool acceptedAfterStop = pool.Sumbmit([] {});
-    assert(!acceptedAfterStop);
-    std::cout << "THreadPool test passed: completed=8\n";
+
+    std::cout << "Bounded queue test passed: completed=2, rejected=1\n";
 }
 
