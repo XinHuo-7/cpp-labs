@@ -9,3 +9,9 @@ target_link_libraries(thread_pool_demo PRIVATE Threads::Threads)
 
 enable_testing()
 add_test(NAME thread_pool_test COMMAND thread_pool_demo)
+
+add_executable(timer_queue_demo src/timer_queue_demo.cpp)
+target_compile_features(timer_queue_demo PRIVATE cxx_std_17)
+target_link_libraries(timer_queue_demo PRIVATE Threads::Threads)
+
+add_test(NAME timer_queue_test COMMAND timer_queue_demo)
