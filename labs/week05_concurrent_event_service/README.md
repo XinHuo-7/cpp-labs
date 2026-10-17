@@ -34,3 +34,11 @@ cmake -S . -B build
 cmake --build build
 ./build/concurrent_event_service
 ctest --test-dir build --output-on-failure
+```
+
+## 当前限制
+
+- 当前只有一个消费者线程
+- 队列没有容量上限
+- 暂不支持任务取消和超时等待
+- 日志直接输出到终端

@@ -2,6 +2,10 @@
 
 #include <cassert>
 #include <stdexcept>
+#include <atomic>
+#include <chrono>
+#include <string>
+#include <vector>
 
 void TestProcessesSubmittedEvents() {
     EventWorker worker{"test-worker"};
@@ -125,6 +129,69 @@ void TestStopBeforeStart() {
 
 }
 
+void TestRepeatedStopAndJoin() {
+    EventWorker worker{"repeated-stop-worker"};
+
+    worker.Start();
+    assert(worker.Submit({"Ethernet0", "LINK_CHANGED"}));
+
+    worker.Stop();
+    worker.Stop();
+
+    worker.Join();
+    worker.Join();
+
+    assert(worker.State() == WorkerState::kStopped);
+    assert(worker.AcceptedCount() == 1);
+    assert(worker.ProcessedCount() == 1);
+}
+
+void TestConcurrentSubmitAndStop() {
+    constexpr int kProducerCount = 4;
+    constexpr int kEventsPerProducer = 500;
+    constexpr int kTotalAttempts = kProducerCount * kEventsPerProducer;
+
+    EventWorker worker{"stress-worker"};
+    std::atomic<int> rejectedCount{0};
+
+    worker.Start();
+
+    std::vector<std::thread> producers;
+    producers.reserve(kProducerCount);
+    for (int producerIndex = 0; producerIndex < kProducerCount; ++producerIndex) {
+        producers.emplace_back([&worker, &rejectedCount, producerIndex] {
+            for (int eventIndex = 0; eventIndex < kEventsPerProducer; ++eventIndex) {
+                PortEvent event{"Ethernet" + std::to_string(producerIndex) + '-' + std::to_string(eventIndex),
+                "LINK_CHANGED"};
+                if(!worker.Submit(std::move(event))) {
+                    rejectedCount++;
+                }
+            }
+        });
+    }
+    std::thread stopper([&worker] { std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        worker.Stop();
+    });
+
+    for (auto& producer : producers) {
+        producer.join();
+    }
+
+    stopper.join();
+    worker.Join();
+    const std::size_t accepted = worker.AcceptedCount();
+    const std::size_t processed = worker.ProcessedCount();
+    const std::size_t rejected = static_cast<std::size_t>(rejectedCount.load());
+
+    assert(worker.State() == WorkerState::kStopped);
+    // 成功进入队列的事件必须全部处理。
+    assert(accepted == processed);
+    // 每次投递要么成功，要么被拒绝。
+    assert(accepted + rejected == static_cast<std::size_t>(kTotalAttempts));
+    
+    assert(!worker.Submit({"Ethernet-final", "LINK_CHANGED"}));
+}
+
 int main() {
    TestProcessesSubmittedEvents(); 
    TestRejectsEventsAfterStop();
@@ -133,4 +200,6 @@ int main() {
    TestConcurrentProducersDoNotLoseEvents();
    TestWorkerLifecycle();
    TestStopBeforeStart();
+   TestRepeatedStopAndJoin();
+   TestConcurrentSubmitAndStop();
 }
