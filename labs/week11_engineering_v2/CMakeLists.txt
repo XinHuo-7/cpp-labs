@@ -3,6 +3,8 @@ project(week11_engineering_v2 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 
+
+
 add_executable(thread_pool_demo src/thread_pool_demo.cpp)
 target_compile_features(thread_pool_demo PRIVATE cxx_std_17)
 target_link_libraries(thread_pool_demo PRIVATE Threads::Threads)
@@ -21,3 +23,15 @@ target_compile_features(event_loop_demo PRIVATE cxx_std_17)
 target_link_libraries(event_loop_demo PRIVATE Threads::Threads)
 
 add_test(NAME event_loop_test COMMAND event_loop_demo)
+
+target_include_directories(thread_pool_demo PRIVATE include)
+target_include_directories(timer_queue_demo PRIVATE include)
+target_include_directories(event_loop_demo PRIVATE include)
+
+add_executable(week11_integration_demo src/week11_integration_demo.cpp)
+target_compile_features(week11_integration_demo PRIVATE cxx_std_17)
+target_include_directories(week11_integration_demo PRIVATE include)
+target_link_libraries(week11_integration_demo PRIVATE Threads::Threads)
+
+add_test(NAME week11_integration_test COMMAND week11_integration_demo)
+set_tests_properties(week11_integration_test PROPERTIES TIMEOUT 3)
