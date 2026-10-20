@@ -1,22 +1,33 @@
+#include <cstddef>
 #include <set>
 #include <vector>
 
-// std::set<int> 保存不重复的波长编号。
-// hops 中的每个 set 代表一段链路的可用波长。
-std::set<int> intersection(std::set<int>& hopA, std::set<int>& hopB) {
-    std::set<int> finalHop;
-    for (int value: hopB) {
-        if(hopA.count(value)) {
-            finalHop.insert(value);
+std::set<int> intersection(
+    const std::set<int>& a,
+    const std::set<int>& b
+) {
+    std::set<int> result;
+    for (int wavelength : b) {
+        if (a.count(wavelength) != 0) {
+            result.insert(wavelength);
         }
     }
-    return finalHop;
+    return result;
 }
 
-std::set<int> commonWavelengths(const std::vector<std::set<int>>& hops) {
-    std::set<int> finalHop = hops[0];
-    for (auto hop : hops) {
-        finalHop = intersection(finalHop, hop);
+std::set<int> commonWavelengths(
+    const std::vector<std::set<int>>& hops
+) {
+    if (hops.empty()) {
+        return {};
     }
-    return finalHop;
+
+    std::set<int> result = hops[0];
+    for (std::size_t i = 1; i < hops.size(); ++i) {
+        result = intersection(result, hops[i]);
+        if (result.empty()) {
+            break;
+        }
+    }
+    return result;
 }
