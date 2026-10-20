@@ -2,10 +2,7 @@
 #include <set>
 #include <vector>
 
-std::set<int> intersection(
-    const std::set<int>& a,
-    const std::set<int>& b
-) {
+std::set<int> intersection(const std::set<int>& a,const std::set<int>& b) {
     std::set<int> result;
     for (int wavelength : b) {
         if (a.count(wavelength) != 0) {
